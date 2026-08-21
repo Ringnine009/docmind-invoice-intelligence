@@ -20,7 +20,7 @@ The original 30 sample PDFs (`_source/…/invoices/`) and their extraction log
 | Real personal names (开票人) | 王梅, 刘娅, 徐辰峰, 谢爱迎 … | Personal names |
 | Real bank account numbers | 中国农业银行上海翔殷支行 `0332670…` | Financial PII |
 | Real order numbers | 订单号 298533157708, JD order ids | Transaction traces |
-| Hard-coded API key | `AIzaSyCf-…` in `_source/…/code/config.py` | Leaked credential |
+| Hard-coded API key | `AIza…` (redacted) in `_source/…/code/config.py` | Leaked credential |
 
 **Verdict**: the original samples contain PII and must **not** be distributed.
 `_source/` is excluded from the repository (see `.gitignore`) and is only kept

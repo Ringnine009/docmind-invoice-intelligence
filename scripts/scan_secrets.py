@@ -12,6 +12,7 @@ Exit code 0 = clean, 1 = matches found.
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -32,8 +33,17 @@ _SKIP_DIRS = {".git", "_source", ".venv", "venv", "node_modules", "data", "dist"
 _SKIP_FILES = {".env", ".env.example", "scan_secrets.py"}
 _SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".pdf", ".pyc", ".xlsx", ".pptx", ".mp4", ".docx"}
 
-# The exact leaked key from the coursework must never appear anywhere.
-_FORBIDDEN_SUBSTRINGS = ["REPLACE_WITH_FORBIDDEN_KEY"]
+# Additional exact strings to forbid can be supplied via the environment
+# (comma separated), e.g. the leaked coursework key:
+#   DOCMIND_FORBIDDEN_KEYS=sk-xxx,AIza...   python scripts/scan_secrets.py
+# The generic patterns above already cover the leaked key's format
+# (AIza[0-9A-Za-z_-]{20,}), so the repository never needs to contain the
+# secret itself.
+
+
+def _extra_forbidden() -> list[str]:
+    raw = os.environ.get("DOCMIND_FORBIDDEN_KEYS", "")
+    return [part.strip() for part in raw.split(",") if part.strip()]
 
 
 def main() -> int:
@@ -47,9 +57,9 @@ def main() -> int:
         except OSError:
             return
         for line_no, line in enumerate(text.splitlines(), 1):
-            for forbidden in _FORBIDDEN_SUBSTRINGS:
+            for forbidden in _extra_forbidden():
                 if forbidden in line:
-                    hits.append((str(path), str(line_no), "leaked coursework key"))
+                    hits.append((str(path), str(line_no), "forbidden key (env DOCMIND_FORBIDDEN_KEYS)"))
             for name, pattern in _PATTERNS:
                 if pattern.search(line):
                     hits.append((str(path), str(line_no), name))
