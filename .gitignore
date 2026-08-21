@@ -31,6 +31,9 @@ _source/
 node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/*.js
+frontend/*.d.ts
+frontend/*.tsbuildinfo
 
 # --- Editor / OS ---
 .idea/
