@@ -1,0 +1,1199 @@
+{
+  "schema_version": 1,
+  "note": "Fully synthetic data — no real personal or company information. Anomalies are intentionally injected for the audit engine demo.",
+  "anomaly_count": 11,
+  "files": {
+    "invoice_001.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24000110433218196001",
+      "issue_date": "2024-04-21",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "913100007GK0H6NLNN"
+      },
+      "seller": {
+        "name": "清源文化传媒有限公司",
+        "tax_id": "91370000J8RU0QR5NN"
+      },
+      "items": [
+        {
+          "name": "软件服务费",
+          "specification": null,
+          "unit": "年",
+          "quantity": 1,
+          "unit_price": 4007.1,
+          "amount_excluding_tax": 4007.1,
+          "tax_rate": 6.0,
+          "tax_amount": 240.43
+        }
+      ],
+      "amount_excluding_tax": 4007.1,
+      "tax_amount": 240.43,
+      "amount_including_tax": 4247.53,
+      "amount_in_words": "肆仟贰佰肆拾柒圆伍角叁分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "陆青禾",
+      "check_code": "54235116155940781618",
+      "anomalies": []
+    },
+    "invoice_002.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24000210341316475255",
+      "issue_date": "2024-04-17",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000M8NXML2KLX"
+      },
+      "seller": {
+        "name": "科锐机械有限公司",
+        "tax_id": "91440000EC8XLNH7MM"
+      },
+      "items": [
+        {
+          "name": "仓储服务",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 4974.56,
+          "amount_excluding_tax": 4974.56,
+          "tax_rate": 6.0,
+          "tax_amount": 298.47
+        }
+      ],
+      "amount_excluding_tax": 4974.56,
+      "tax_amount": 298.47,
+      "amount_including_tax": 5273.03,
+      "amount_in_words": "伍仟贰佰柒拾叁圆叁分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "白砚秋",
+      "check_code": "03056413953767242388",
+      "anomalies": []
+    },
+    "invoice_003.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24000365328710122691",
+      "issue_date": "2024-07-16",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000CKEG8HUY0C"
+      },
+      "seller": {
+        "name": "瑞丰软件股份有限公司",
+        "tax_id": "9132000039D5E0YPW7"
+      },
+      "items": [
+        {
+          "name": "办公耗材",
+          "specification": null,
+          "unit": "批",
+          "quantity": 1,
+          "unit_price": 63.13,
+          "amount_excluding_tax": 63.13,
+          "tax_rate": 13.0,
+          "tax_amount": 8.21
+        }
+      ],
+      "amount_excluding_tax": 63.13,
+      "tax_amount": 8.21,
+      "amount_including_tax": 71.34,
+      "amount_in_words": "柒拾壹圆叁角肆分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "江流云",
+      "check_code": "82814893252880957015",
+      "anomalies": []
+    },
+    "invoice_004.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24417000000019990001",
+      "issue_date": "2024-08-04",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000Y6XHQPN6NK"
+      },
+      "seller": {
+        "name": "联创文化传媒股份有限公司",
+        "tax_id": "91370000WGE3772A0G"
+      },
+      "items": [
+        {
+          "name": "建筑安装服务",
+          "specification": null,
+          "unit": "项",
+          "quantity": 1,
+          "unit_price": 563.17,
+          "amount_excluding_tax": 563.17,
+          "tax_rate": 9.0,
+          "tax_amount": 50.68
+        },
+        {
+          "name": "仓储服务",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 354.87,
+          "amount_excluding_tax": 354.87,
+          "tax_rate": 6.0,
+          "tax_amount": 21.29
+        }
+      ],
+      "amount_excluding_tax": 918.04,
+      "tax_amount": 71.97,
+      "amount_including_tax": 990.01,
+      "amount_in_words": "玖佰玖拾圆壹分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "程慕远",
+      "check_code": "83930103105183473829",
+      "anomalies": [
+        "duplicate_number"
+      ]
+    },
+    "invoice_005.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24417000000019990001",
+      "issue_date": "2024-04-07",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000HE4D58E7UY"
+      },
+      "seller": {
+        "name": "恒宇电子有限公司",
+        "tax_id": "91310000LHT02XQU7X"
+      },
+      "items": [
+        {
+          "name": "办公耗材",
+          "specification": null,
+          "unit": "批",
+          "quantity": 1,
+          "unit_price": 1272.62,
+          "amount_excluding_tax": 1272.62,
+          "tax_rate": 13.0,
+          "tax_amount": 165.44
+        }
+      ],
+      "amount_excluding_tax": 1272.62,
+      "tax_amount": 165.44,
+      "amount_including_tax": 1438.06,
+      "amount_in_words": "壹仟肆佰叁拾捌圆陆分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "骆清扬",
+      "check_code": "67736026064746872343",
+      "anomalies": [
+        "duplicate_number"
+      ]
+    },
+    "invoice_006.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24000600978820812191",
+      "issue_date": "2024-12-11",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000U7C3YWJ7JN"
+      },
+      "seller": {
+        "name": "观澜科技有限公司",
+        "tax_id": "91120000MJJGAX86MJ"
+      },
+      "items": [
+        {
+          "name": "软件服务费",
+          "specification": null,
+          "unit": "年",
+          "quantity": 1,
+          "unit_price": 70.3,
+          "amount_excluding_tax": 70.3,
+          "tax_rate": 6.0,
+          "tax_amount": 4.22
+        }
+      ],
+      "amount_excluding_tax": 70.3,
+      "tax_amount": 4.22,
+      "amount_including_tax": 74.52,
+      "amount_in_words": "柒拾肆圆伍角贰分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "白砚秋",
+      "check_code": "34624751079911838425",
+      "anomalies": []
+    },
+    "invoice_007.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24000778498084124118",
+      "issue_date": "2024-03-20",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "9131000089K6NA6MLN"
+      },
+      "seller": {
+        "name": "天成机械股份有限公司",
+        "tax_id": "91510000WXU12LDT8A"
+      },
+      "items": [
+        {
+          "name": "云服务器租赁费",
+          "specification": "2核4G",
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 25.24,
+          "amount_excluding_tax": 25.24,
+          "tax_rate": 6.0,
+          "tax_amount": 1.51
+        }
+      ],
+      "amount_excluding_tax": 25.24,
+      "tax_amount": 1.51,
+      "amount_including_tax": 36.75,
+      "amount_in_words": "叁拾陆圆柒角伍分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "祁远山",
+      "check_code": "05242786801128059826",
+      "anomalies": [
+        "arithmetic_mismatch"
+      ]
+    },
+    "invoice_008.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24000805331586923226",
+      "issue_date": "2024-01-13",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "913100005PXARXDRM9"
+      },
+      "seller": {
+        "name": "博远餐饮有限公司",
+        "tax_id": "91110000CU1UF76TXP"
+      },
+      "items": [
+        {
+          "name": "办公耗材",
+          "specification": null,
+          "unit": "批",
+          "quantity": 1,
+          "unit_price": 121.54,
+          "amount_excluding_tax": 121.54,
+          "tax_rate": 13.0,
+          "tax_amount": 15.8
+        },
+        {
+          "name": "仓储服务",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 165.39,
+          "amount_excluding_tax": 165.39,
+          "tax_rate": 6.0,
+          "tax_amount": 9.92
+        }
+      ],
+      "amount_excluding_tax": 286.93,
+      "tax_amount": 25.72,
+      "amount_including_tax": 312.65,
+      "amount_in_words": "叁佰壹拾贰圆陆角伍分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "沈砚舟",
+      "check_code": "54330365414586850142",
+      "anomalies": []
+    },
+    "invoice_009.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24000956981693406088",
+      "issue_date": "2024-12-17",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000PYPPM6BD2Q"
+      },
+      "seller": {
+        "name": "云帆网络股份有限公司",
+        "tax_id": "91110000PW9G9MDAC5"
+      },
+      "items": [
+        {
+          "name": "电脑维修服务",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 499.48,
+          "amount_excluding_tax": 499.48,
+          "tax_rate": 17.0,
+          "tax_amount": 84.91
+        },
+        {
+          "name": "物流收派服务费",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 531.64,
+          "amount_excluding_tax": 531.64,
+          "tax_rate": 6.0,
+          "tax_amount": 31.9
+        }
+      ],
+      "amount_excluding_tax": 1031.12,
+      "tax_amount": 116.81,
+      "amount_including_tax": 1147.93,
+      "amount_in_words": "壹仟壹佰肆拾柒圆玖角叁分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "江流云",
+      "check_code": "82366299468044369957",
+      "anomalies": [
+        "anomalous_tax_rate"
+      ]
+    },
+    "invoice_010.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24001048951343320037",
+      "issue_date": "2024-11-08",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000UQ2EDWLJ66"
+      },
+      "seller": {
+        "name": "宏图电子股份有限公司",
+        "tax_id": "913300004LN0WQUQW2"
+      },
+      "items": [
+        {
+          "name": "物流收派服务费",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 563.64,
+          "amount_excluding_tax": 563.64,
+          "tax_rate": 6.0,
+          "tax_amount": 33.82
+        },
+        {
+          "name": "打印复印服务",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 424.81,
+          "amount_excluding_tax": 424.81,
+          "tax_rate": 13.0,
+          "tax_amount": 55.22
+        }
+      ],
+      "amount_excluding_tax": 988.45,
+      "tax_amount": 89.04,
+      "amount_including_tax": 1077.49,
+      "amount_in_words": "壹仟零柒拾柒圆肆角玖分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "苏明轩",
+      "check_code": "63287083172788957986",
+      "anomalies": []
+    },
+    "invoice_011.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24001134873471434558",
+      "issue_date": "2024-02-11",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000447CN4N62C"
+      },
+      "seller": {
+        "name": "嘉禾文化传媒股份有限公司",
+        "tax_id": "91370000D16TDCWQJD"
+      },
+      "items": [
+        {
+          "name": "农产品",
+          "specification": null,
+          "unit": "千克",
+          "quantity": 1,
+          "unit_price": 4327.87,
+          "amount_excluding_tax": 4327.87,
+          "tax_rate": 9.0,
+          "tax_amount": 389.51
+        },
+        {
+          "name": "设计服务",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 5040.12,
+          "amount_excluding_tax": 5040.12,
+          "tax_rate": 6.0,
+          "tax_amount": 302.41
+        },
+        {
+          "name": "固态硬盘",
+          "specification": "1TB",
+          "unit": "个",
+          "quantity": 1,
+          "unit_price": 4692.19,
+          "amount_excluding_tax": 4692.19,
+          "tax_rate": 13.0,
+          "tax_amount": 609.98
+        }
+      ],
+      "amount_excluding_tax": 14060.18,
+      "tax_amount": 1301.9,
+      "amount_including_tax": 15362.08,
+      "amount_in_words": "壹万伍仟叁佰陆拾贰圆捌分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "祁远山",
+      "check_code": "96705466889373467065",
+      "anomalies": []
+    },
+    "invoice_012.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24001299016272046537",
+      "issue_date": "2024-06-16",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000AQWC8QYTD4"
+      },
+      "seller": {
+        "name": "天成贸易股份有限公司",
+        "tax_id": null
+      },
+      "items": [
+        {
+          "name": "固态硬盘",
+          "specification": "1TB",
+          "unit": "个",
+          "quantity": 1,
+          "unit_price": 35.65,
+          "amount_excluding_tax": 35.65,
+          "tax_rate": 13.0,
+          "tax_amount": 4.64
+        }
+      ],
+      "amount_excluding_tax": 35.65,
+      "tax_amount": 4.64,
+      "amount_including_tax": 40.29,
+      "amount_in_words": "肆拾圆贰角玖分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "祁远山",
+      "check_code": "03309232719374529912",
+      "anomalies": [
+        "missing_seller_tax_id"
+      ]
+    },
+    "invoice_013.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24001396631931491905",
+      "issue_date": "2024-09-29",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000DMB2GLA0UW"
+      },
+      "seller": {
+        "name": "嘉禾电子有限公司",
+        "tax_id": "91120000YBLWTEN4DR"
+      },
+      "items": [
+        {
+          "name": "培训服务费",
+          "specification": null,
+          "unit": "期",
+          "quantity": 1,
+          "unit_price": 351.64,
+          "amount_excluding_tax": 351.64,
+          "tax_rate": 6.0,
+          "tax_amount": 21.1
+        }
+      ],
+      "amount_excluding_tax": 351.64,
+      "tax_amount": 21.1,
+      "amount_including_tax": 372.74,
+      "amount_in_words": "叁佰柒拾贰圆柒角肆分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "骆清扬",
+      "check_code": "84987769453147379965",
+      "anomalies": []
+    },
+    "invoice_014.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24417000000029990002",
+      "issue_date": "2024-09-07",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000HQ7NFLNFEY"
+      },
+      "seller": {
+        "name": "华辰贸易股份有限公司",
+        "tax_id": "91330000CN79MJBFHK"
+      },
+      "items": [
+        {
+          "name": "云服务器租赁费",
+          "specification": "2核4G",
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 1567.25,
+          "amount_excluding_tax": 1567.25,
+          "tax_rate": 6.0,
+          "tax_amount": 94.04
+        },
+        {
+          "name": "电脑维修服务",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 994.46,
+          "amount_excluding_tax": 994.46,
+          "tax_rate": 1.0,
+          "tax_amount": 9.94
+        },
+        {
+          "name": "软件服务费",
+          "specification": null,
+          "unit": "年",
+          "quantity": 1,
+          "unit_price": 841.75,
+          "amount_excluding_tax": 841.75,
+          "tax_rate": 6.0,
+          "tax_amount": 50.51
+        }
+      ],
+      "amount_excluding_tax": 3403.46,
+      "tax_amount": 154.49,
+      "amount_including_tax": 3557.95,
+      "amount_in_words": "叁仟伍佰伍拾柒圆玖角伍分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "温既白",
+      "check_code": "56855744431351823374",
+      "anomalies": [
+        "duplicate_number"
+      ]
+    },
+    "invoice_015.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24417000000029990002",
+      "issue_date": "2024-08-28",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000FEA5Y18YUD"
+      },
+      "seller": {
+        "name": "星海贸易有限公司",
+        "tax_id": "91120000F2JLM144R6"
+      },
+      "items": [
+        {
+          "name": "会议注册费",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 1537.44,
+          "amount_excluding_tax": 1537.44,
+          "tax_rate": 6.0,
+          "tax_amount": 92.25
+        }
+      ],
+      "amount_excluding_tax": 1537.44,
+      "tax_amount": 92.25,
+      "amount_including_tax": 1629.69,
+      "amount_in_words": "壹仟陆佰贰拾玖圆陆角玖分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "程慕远",
+      "check_code": "41318699938677496499",
+      "anomalies": [
+        "duplicate_number"
+      ]
+    },
+    "invoice_016.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24001633412328120679",
+      "issue_date": "2024-08-28",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "913100009179N9NUE6"
+      },
+      "seller": {
+        "name": "恒宇软件有限公司",
+        "tax_id": "91510000RRLJMRX6DD"
+      },
+      "items": [
+        {
+          "name": "网络设备",
+          "specification": null,
+          "unit": "台",
+          "quantity": 1,
+          "unit_price": 477.18,
+          "amount_excluding_tax": 477.18,
+          "tax_rate": 13.0,
+          "tax_amount": 62.03
+        },
+        {
+          "name": "仓储服务",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 560.2,
+          "amount_excluding_tax": 560.2,
+          "tax_rate": 6.0,
+          "tax_amount": 33.61
+        }
+      ],
+      "amount_excluding_tax": 1037.38,
+      "tax_amount": 95.64,
+      "amount_including_tax": 1133.02,
+      "amount_in_words": "壹仟壹佰叁拾叁圆贰分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "苏明轩",
+      "check_code": "83242102499471746488",
+      "anomalies": []
+    },
+    "invoice_017.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24001794013990490278",
+      "issue_date": "2024-11-29",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000EX85JDLTF9"
+      },
+      "seller": {
+        "name": "恒宇电子股份有限公司",
+        "tax_id": "91120000AAM3U5ADN2"
+      },
+      "items": [
+        {
+          "name": "设计服务",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 569.81,
+          "amount_excluding_tax": 569.81,
+          "tax_rate": 6.0,
+          "tax_amount": 34.19
+        },
+        {
+          "name": "电脑维修服务",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 402.79,
+          "amount_excluding_tax": 402.79,
+          "tax_rate": 1.0,
+          "tax_amount": 4.03
+        }
+      ],
+      "amount_excluding_tax": 972.6,
+      "tax_amount": 38.22,
+      "amount_including_tax": 1010.82,
+      "amount_in_words": "壹仟零壹拾圆捌角贰分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "沈砚舟",
+      "check_code": "46807154516808760385",
+      "anomalies": []
+    },
+    "invoice_018.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24001824771093248086",
+      "issue_date": "2024-02-17",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "913100007TX3EY3LTP"
+      },
+      "seller": {
+        "name": "盛达电子股份有限公司",
+        "tax_id": "91510000DTFF7EH4CB"
+      },
+      "items": [
+        {
+          "name": "农产品",
+          "specification": null,
+          "unit": "千克",
+          "quantity": 1,
+          "unit_price": 1061.59,
+          "amount_excluding_tax": 1061.59,
+          "tax_rate": 0.5,
+          "tax_amount": 5.31
+        }
+      ],
+      "amount_excluding_tax": 1061.59,
+      "tax_amount": 5.31,
+      "amount_including_tax": 1066.9,
+      "amount_in_words": "壹仟零陆拾陆圆玖角",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "顾星野",
+      "check_code": "98214658404499727875",
+      "anomalies": [
+        "anomalous_tax_rate"
+      ]
+    },
+    "invoice_019.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24001953396360576627",
+      "issue_date": "2025-05-08",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "9131000014GYJAU3UK"
+      },
+      "seller": {
+        "name": "瑞祥贸易股份有限公司",
+        "tax_id": "91310000P4DUL42FRF"
+      },
+      "items": [
+        {
+          "name": "云服务器租赁费",
+          "specification": "2核4G",
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 112.31,
+          "amount_excluding_tax": 112.31,
+          "tax_rate": 6.0,
+          "tax_amount": 6.74
+        },
+        {
+          "name": "办公耗材",
+          "specification": null,
+          "unit": "批",
+          "quantity": 1,
+          "unit_price": 68.45,
+          "amount_excluding_tax": 68.45,
+          "tax_rate": 13.0,
+          "tax_amount": 8.9
+        }
+      ],
+      "amount_excluding_tax": 180.76,
+      "tax_amount": 15.64,
+      "amount_including_tax": 196.4,
+      "amount_in_words": "壹佰玖拾陆圆肆角",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "江流云",
+      "check_code": "59615865780913431611",
+      "anomalies": []
+    },
+    "invoice_020.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002004556238692221",
+      "issue_date": "2024-11-08",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000UCKM7FXJ49"
+      },
+      "seller": {
+        "name": "博远电子股份有限公司",
+        "tax_id": "913700008M0WREW9M3"
+      },
+      "items": [
+        {
+          "name": "固态硬盘",
+          "specification": "1TB",
+          "unit": "个",
+          "quantity": 1,
+          "unit_price": 244.66,
+          "amount_excluding_tax": 244.66,
+          "tax_rate": 13.0,
+          "tax_amount": 31.81
+        },
+        {
+          "name": "农产品",
+          "specification": null,
+          "unit": "千克",
+          "quantity": 1,
+          "unit_price": 150.39,
+          "amount_excluding_tax": 150.39,
+          "tax_rate": 9.0,
+          "tax_amount": 13.53
+        },
+        {
+          "name": "办公耗材",
+          "specification": null,
+          "unit": "批",
+          "quantity": 1,
+          "unit_price": 235.13,
+          "amount_excluding_tax": 235.13,
+          "tax_rate": 13.0,
+          "tax_amount": 30.57
+        }
+      ],
+      "amount_excluding_tax": 630.18,
+      "tax_amount": 75.91,
+      "amount_including_tax": 656.09,
+      "amount_in_words": "陆佰伍拾陆圆玖分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "温既白",
+      "check_code": "21759464743671369594",
+      "anomalies": [
+        "arithmetic_mismatch"
+      ]
+    },
+    "invoice_021.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002174395339421047",
+      "issue_date": "2024-01-18",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000JBP42X9APD"
+      },
+      "seller": {
+        "name": "嘉禾信息技术有限公司",
+        "tax_id": "91440000RHWBGGX8TL"
+      },
+      "items": [
+        {
+          "name": "餐饮服务",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 4028.86,
+          "amount_excluding_tax": 4028.86,
+          "tax_rate": 6.0,
+          "tax_amount": 241.73
+        },
+        {
+          "name": "软件服务费",
+          "specification": null,
+          "unit": "年",
+          "quantity": 1,
+          "unit_price": 2591.24,
+          "amount_excluding_tax": 2591.24,
+          "tax_rate": 6.0,
+          "tax_amount": 155.47
+        },
+        {
+          "name": "建筑安装服务",
+          "specification": null,
+          "unit": "项",
+          "quantity": 1,
+          "unit_price": 3585.99,
+          "amount_excluding_tax": 3585.99,
+          "tax_rate": 9.0,
+          "tax_amount": 322.74
+        }
+      ],
+      "amount_excluding_tax": 10206.09,
+      "tax_amount": 719.94,
+      "amount_including_tax": 10926.03,
+      "amount_in_words": "壹万零玖佰贰拾陆圆叁分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "骆清扬",
+      "check_code": "47451712368516048175",
+      "anomalies": []
+    },
+    "invoice_022.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002298593174612004",
+      "issue_date": "2024-09-09",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000337WH4CEBW"
+      },
+      "seller": {
+        "name": "清源文化传媒有限公司",
+        "tax_id": "91120000L3TFKDYY8N"
+      },
+      "items": [
+        {
+          "name": "建筑安装服务",
+          "specification": null,
+          "unit": "项",
+          "quantity": 1,
+          "unit_price": 255.24,
+          "amount_excluding_tax": 255.24,
+          "tax_rate": 9.0,
+          "tax_amount": 22.97
+        }
+      ],
+      "amount_excluding_tax": 255.24,
+      "tax_amount": 22.97,
+      "amount_including_tax": 278.21,
+      "amount_in_words": "贰佰柒拾捌圆贰角壹分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "祁远山",
+      "check_code": "53773515850643171390",
+      "anomalies": []
+    },
+    "invoice_023.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002393183933529042",
+      "issue_date": "2024-03-07",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000H8R53MU04R"
+      },
+      "seller": {
+        "name": "华辰商务服务有限公司",
+        "tax_id": "9132000005814PDG37"
+      },
+      "items": [
+        {
+          "name": "设计服务",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 2486.01,
+          "amount_excluding_tax": 2486.01,
+          "tax_rate": 6.0,
+          "tax_amount": 149.16
+        },
+        {
+          "name": "网络设备",
+          "specification": null,
+          "unit": "台",
+          "quantity": 1,
+          "unit_price": 3036.07,
+          "amount_excluding_tax": 3036.07,
+          "tax_rate": 13.0,
+          "tax_amount": 394.69
+        }
+      ],
+      "amount_excluding_tax": 5522.08,
+      "tax_amount": 543.85,
+      "amount_including_tax": 6065.93,
+      "amount_in_words": "陆仟零陆拾伍圆玖角叁分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "苏明轩",
+      "check_code": "77589178390847007661",
+      "anomalies": []
+    },
+    "invoice_024.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002421249985698478",
+      "issue_date": "2024-11-05",
+      "buyer": {
+        "name": "清源咨询有限公司",
+        "tax_id": "91310000D3RN3ULLWG"
+      },
+      "seller": {
+        "name": "清源咨询有限公司",
+        "tax_id": "91120000EW7DATECDM"
+      },
+      "items": [
+        {
+          "name": "会议注册费",
+          "specification": null,
+          "unit": "次",
+          "quantity": 1,
+          "unit_price": 3504.33,
+          "amount_excluding_tax": 3504.33,
+          "tax_rate": 6.0,
+          "tax_amount": 210.26
+        }
+      ],
+      "amount_excluding_tax": 3504.33,
+      "tax_amount": 210.26,
+      "amount_including_tax": 3714.59,
+      "amount_in_words": "叁仟柒佰壹拾肆圆伍角玖分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "苏明轩",
+      "check_code": "56545271111615280988",
+      "anomalies": [
+        "self_dealing"
+      ]
+    },
+    "invoice_025.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002560494519832731",
+      "issue_date": "2024-06-28",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000UHB3Q8J7RU"
+      },
+      "seller": {
+        "name": "嘉禾机械有限公司",
+        "tax_id": "91510000058NQ9XABR"
+      },
+      "items": [
+        {
+          "name": "服务器租赁服务费",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 20.55,
+          "amount_excluding_tax": 20.55,
+          "tax_rate": 6.0,
+          "tax_amount": 1.23
+        }
+      ],
+      "amount_excluding_tax": 20.55,
+      "tax_amount": 1.23,
+      "amount_including_tax": 21.78,
+      "amount_in_words": "贰拾壹圆柒角捌分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "祁远山",
+      "check_code": "22961201836675254599",
+      "anomalies": []
+    },
+    "invoice_026.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002690147679764381",
+      "issue_date": "2024-06-25",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000D39MMJFGMY"
+      },
+      "seller": {
+        "name": "联创科技有限公司",
+        "tax_id": "91120000K1069Y6Q4H"
+      },
+      "items": [
+        {
+          "name": "仓储服务",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 199.75,
+          "amount_excluding_tax": 199.75,
+          "tax_rate": 6.0,
+          "tax_amount": 11.99
+        }
+      ],
+      "amount_excluding_tax": 199.75,
+      "tax_amount": 11.99,
+      "amount_including_tax": 211.74,
+      "amount_in_words": "贰佰壹拾壹圆柒角肆分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "江流云",
+      "check_code": "45107622683885160607",
+      "anomalies": []
+    },
+    "invoice_027.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002764160529751613",
+      "issue_date": "2030-01-15",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000JCG2CU9PA3"
+      },
+      "seller": {
+        "name": "博远商务服务有限公司",
+        "tax_id": "91110000GL3GG6WQBA"
+      },
+      "items": [
+        {
+          "name": "网络设备",
+          "specification": null,
+          "unit": "台",
+          "quantity": 1,
+          "unit_price": 431.48,
+          "amount_excluding_tax": 431.48,
+          "tax_rate": 13.0,
+          "tax_amount": 56.09
+        }
+      ],
+      "amount_excluding_tax": 431.48,
+      "tax_amount": 56.09,
+      "amount_including_tax": 487.57,
+      "amount_in_words": "肆佰捌拾柒圆伍角柒分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "白砚秋",
+      "check_code": "23124329212779979955",
+      "anomalies": [
+        "future_date"
+      ]
+    },
+    "invoice_028.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002844905814770054",
+      "issue_date": "2024-02-09",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000LUU2KKGCE2"
+      },
+      "seller": {
+        "name": "朗月机械有限公司",
+        "tax_id": "91370000XRJL6AKFG8"
+      },
+      "items": [
+        {
+          "name": "办公耗材",
+          "specification": null,
+          "unit": "批",
+          "quantity": 1,
+          "unit_price": 4358.88,
+          "amount_excluding_tax": 4358.88,
+          "tax_rate": 13.0,
+          "tax_amount": 566.65
+        }
+      ],
+      "amount_excluding_tax": 4358.88,
+      "tax_amount": 566.65,
+      "amount_including_tax": 4925.53,
+      "amount_in_words": "肆仟玖佰贰拾伍圆伍角叁分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "骆清扬",
+      "check_code": "07151820377889255466",
+      "anomalies": []
+    },
+    "invoice_029.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24002951518644925192",
+      "issue_date": "2025-04-14",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000B9YLNMC4KX"
+      },
+      "seller": {
+        "name": "恒宇餐饮股份有限公司",
+        "tax_id": "91320000T4MNTYPMXE"
+      },
+      "items": [
+        {
+          "name": "办公耗材",
+          "specification": null,
+          "unit": "批",
+          "quantity": 1,
+          "unit_price": 1199.51,
+          "amount_excluding_tax": 1199.51,
+          "tax_rate": 13.0,
+          "tax_amount": 155.94
+        },
+        {
+          "name": "服务器租赁服务费",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 1220.15,
+          "amount_excluding_tax": 1220.15,
+          "tax_rate": 6.0,
+          "tax_amount": 73.21
+        },
+        {
+          "name": "服务器租赁服务费",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 826.19,
+          "amount_excluding_tax": 826.19,
+          "tax_rate": 6.0,
+          "tax_amount": 49.57
+        }
+      ],
+      "amount_excluding_tax": 3245.85,
+      "tax_amount": 278.72,
+      "amount_including_tax": 3524.57,
+      "amount_in_words": "叁仟伍佰贰拾肆圆伍角柒分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "温既白",
+      "check_code": "16850542357332214188",
+      "anomalies": []
+    },
+    "invoice_030.pdf": {
+      "invoice_type": "电子发票（普通发票）",
+      "invoice_number": "24003092706537947383",
+      "issue_date": "2024-06-07",
+      "buyer": {
+        "name": "远景云服务有限公司",
+        "tax_id": "91310000YRRFWT6BMQ"
+      },
+      "seller": {
+        "name": "朗月电子股份有限公司",
+        "tax_id": "91510000QCGGDY5T66"
+      },
+      "items": [
+        {
+          "name": "仓储服务",
+          "specification": null,
+          "unit": "月",
+          "quantity": 1,
+          "unit_price": 18.19,
+          "amount_excluding_tax": 18.19,
+          "tax_rate": 6.0,
+          "tax_amount": 1.09
+        }
+      ],
+      "amount_excluding_tax": 18.19,
+      "tax_amount": 1.09,
+      "amount_including_tax": 19.28,
+      "amount_in_words": "壹拾玖圆贰角捌分",
+      "remarks": "合成样例数据，仅供演示与评测（DocMind）",
+      "issuer": "程慕远",
+      "check_code": "24075818141247826137",
+      "anomalies": []
+    }
+  }
+}
