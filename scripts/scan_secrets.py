@@ -33,7 +33,7 @@ _SKIP_FILES = {".env", ".env.example", "scan_secrets.py"}
 _SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".pdf", ".pyc", ".xlsx", ".pptx", ".mp4", ".docx"}
 
 # The exact leaked key from the coursework must never appear anywhere.
-_FORBIDDEN_SUBSTRINGS = ["AIzaSy__REMOVED_FORBIDDEN_PLACEHOLDER__"]
+_FORBIDDEN_SUBSTRINGS = ["REPLACE_WITH_FORBIDDEN_KEY"]
 
 
 def main() -> int:
