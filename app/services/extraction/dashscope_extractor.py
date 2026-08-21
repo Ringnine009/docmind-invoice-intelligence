@@ -51,7 +51,12 @@ _EXTRACTION_PROMPT = """你是一个专业的增值税发票信息抽取引擎�
 
 
 class DashScopeExtractor(Extractor):
-    """Vision extraction backed by a DashScope OpenAI-compatible chat model."""
+    """Vision extraction backed by a DashScope OpenAI-compatible chat model.
+
+    Uses ``qwen-vl-plus`` by default with ``qwen3.5-ocr`` as fallback. Each
+    model call is retried once on flaky responses, and JSON output is repaired
+    tolerantly before normalization (see json_utils.extract_json).
+    """
 
     name = "dashscope"
 
