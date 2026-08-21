@@ -11,7 +11,7 @@ import json
 import re
 from pathlib import Path
 
-from app.core.config import REPO_ROOT
+from app.core.config import find_repo_root
 from app.models.invoice import InvoiceDocument, InvoiceParty
 from app.services.extraction.base import Extractor
 from app.services.extraction.json_utils import normalize_raw_invoice
@@ -22,7 +22,7 @@ class MockExtractor(Extractor):
 
     def __init__(self, ground_truth_path: str | Path | None = None) -> None:
         self.ground_truth_path = Path(ground_truth_path) if ground_truth_path else (
-            REPO_ROOT / "benchmark" / "ground_truth.json"
+            find_repo_root() / "benchmark" / "ground_truth.json"
         )
         self._ground_truth = self._load_ground_truth()
 

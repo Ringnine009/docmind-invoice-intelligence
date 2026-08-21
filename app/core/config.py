@@ -22,6 +22,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def find_repo_root() -> Path:
+    """Locate the repository root robustly.
+
+    Primary: walk up from this file until a directory containing
+    ``pyproject.toml`` is found (works for both source checkouts and
+    editable installs). Fallback: the process working directory. This keeps
+    data-file lookups (e.g. ``benchmark/ground_truth.json``) working even if
+    the ``app`` package is ever imported from a copied (non-editable) install.
+    """
+    marker = "pyproject.toml"
+    for parent in [REPO_ROOT, *REPO_ROOT.parents]:
+        if (parent / marker).is_file():
+            return parent
+    return Path.cwd()
+
+
 def _env_file_candidates() -> tuple[Path, ...]:
     explicit = os.environ.get("DOCMIND_ENV_FILE")
     candidates: list[Path] = [Path(explicit)] if explicit else []
