@@ -284,7 +284,7 @@ export function AnalysisPanel({ results }: Props) {
       </div>
 
       <p className="analysis-stats">
-        <strong>{filtered.length}</strong> 条记录 · 合计{" "}
+        <strong>{filtered.length}</strong> records · total{" "}
         <strong className="mono">{fmtMoney(total)}</strong>
       </p>
 
