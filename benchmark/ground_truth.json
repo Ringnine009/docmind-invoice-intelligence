@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "note": "Fully synthetic data — no real personal or company information. Anomalies are intentionally injected for the audit engine demo.",
-  "anomaly_count": 11,
+  "anomaly_count": 12,
   "files": {
     "invoice_001.pdf": {
       "invoice_type": "电子发票（普通发票）",
@@ -34,6 +34,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "陆青禾",
       "check_code": "54235116155940781618",
+      "qr_payload": "01,32,,24000110433218196001,4247.53,20240421",
       "anomalies": []
     },
     "invoice_002.pdf": {
@@ -67,6 +68,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "白砚秋",
       "check_code": "03056413953767242388",
+      "qr_payload": "01,32,,24000210341316475255,5273.03,20240417",
       "anomalies": []
     },
     "invoice_003.pdf": {
@@ -100,6 +102,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "江流云",
       "check_code": "82814893252880957015",
+      "qr_payload": "01,32,,24000365328710122691,71.34,20240716",
       "anomalies": []
     },
     "invoice_004.pdf": {
@@ -143,6 +146,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "程慕远",
       "check_code": "83930103105183473829",
+      "qr_payload": "01,32,,24417000000019990001,990.01,20240804",
       "anomalies": [
         "duplicate_number"
       ]
@@ -178,6 +182,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "骆清扬",
       "check_code": "67736026064746872343",
+      "qr_payload": "01,32,,24417000000019990001,1438.06,20240407",
       "anomalies": [
         "duplicate_number"
       ]
@@ -213,6 +218,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "白砚秋",
       "check_code": "34624751079911838425",
+      "qr_payload": "01,32,,24000600978820812191,74.52,20241211",
       "anomalies": []
     },
     "invoice_007.pdf": {
@@ -246,6 +252,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "祁远山",
       "check_code": "05242786801128059826",
+      "qr_payload": "01,32,,24000778498084124118,36.75,20240320",
       "anomalies": [
         "arithmetic_mismatch"
       ]
@@ -291,6 +298,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "沈砚舟",
       "check_code": "54330365414586850142",
+      "qr_payload": "01,32,,24000805331586923226,312.65,20240113",
       "anomalies": []
     },
     "invoice_009.pdf": {
@@ -334,6 +342,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "江流云",
       "check_code": "82366299468044369957",
+      "qr_payload": "01,32,,24000956981693406088,1147.93,20241217",
       "anomalies": [
         "anomalous_tax_rate"
       ]
@@ -379,6 +388,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "苏明轩",
       "check_code": "63287083172788957986",
+      "qr_payload": "01,32,,24001048951343320037,1077.49,20241108",
       "anomalies": []
     },
     "invoice_011.pdf": {
@@ -432,6 +442,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "祁远山",
       "check_code": "96705466889373467065",
+      "qr_payload": "01,32,,24001134873471434558,15362.08,20240211",
       "anomalies": []
     },
     "invoice_012.pdf": {
@@ -465,6 +476,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "祁远山",
       "check_code": "03309232719374529912",
+      "qr_payload": "01,32,,24001299016272046537,40.29,20240616",
       "anomalies": [
         "missing_seller_tax_id"
       ]
@@ -500,6 +512,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "骆清扬",
       "check_code": "84987769453147379965",
+      "qr_payload": "01,32,,24001396631931491905,372.74,20240929",
       "anomalies": []
     },
     "invoice_014.pdf": {
@@ -553,6 +566,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "温既白",
       "check_code": "56855744431351823374",
+      "qr_payload": "01,32,,24417000000029990002,3557.95,20240907",
       "anomalies": [
         "duplicate_number"
       ]
@@ -588,6 +602,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "程慕远",
       "check_code": "41318699938677496499",
+      "qr_payload": "01,32,,24417000000029990002,1629.69,20240828",
       "anomalies": [
         "duplicate_number"
       ]
@@ -633,6 +648,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "苏明轩",
       "check_code": "83242102499471746488",
+      "qr_payload": "01,32,,24001633412328120679,1133.02,20240828",
       "anomalies": []
     },
     "invoice_017.pdf": {
@@ -676,6 +692,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "沈砚舟",
       "check_code": "46807154516808760385",
+      "qr_payload": "01,32,,24001794013990490278,1010.82,20241129",
       "anomalies": []
     },
     "invoice_018.pdf": {
@@ -709,6 +726,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "顾星野",
       "check_code": "98214658404499727875",
+      "qr_payload": "01,32,,24001824771093248086,1066.90,20240217",
       "anomalies": [
         "anomalous_tax_rate"
       ]
@@ -754,6 +772,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "江流云",
       "check_code": "59615865780913431611",
+      "qr_payload": "01,32,,24001953396360576627,196.40,20250508",
       "anomalies": []
     },
     "invoice_020.pdf": {
@@ -807,6 +826,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "温既白",
       "check_code": "21759464743671369594",
+      "qr_payload": "01,32,,24002004556238692221,656.09,20241108",
       "anomalies": [
         "arithmetic_mismatch"
       ]
@@ -862,6 +882,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "骆清扬",
       "check_code": "47451712368516048175",
+      "qr_payload": "01,32,,24002174395339421047,10926.03,20240118",
       "anomalies": []
     },
     "invoice_022.pdf": {
@@ -895,7 +916,10 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "祁远山",
       "check_code": "53773515850643171390",
-      "anomalies": []
+      "qr_payload": "01,32,,24002298593174612004,378.21,20240909",
+      "anomalies": [
+        "qr_mismatch"
+      ]
     },
     "invoice_023.pdf": {
       "invoice_type": "电子发票（普通发票）",
@@ -938,6 +962,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "苏明轩",
       "check_code": "77589178390847007661",
+      "qr_payload": "01,32,,24002393183933529042,6065.93,20240307",
       "anomalies": []
     },
     "invoice_024.pdf": {
@@ -971,6 +996,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "苏明轩",
       "check_code": "56545271111615280988",
+      "qr_payload": "01,32,,24002421249985698478,3714.59,20241105",
       "anomalies": [
         "self_dealing"
       ]
@@ -1006,6 +1032,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "祁远山",
       "check_code": "22961201836675254599",
+      "qr_payload": "01,32,,24002560494519832731,21.78,20240628",
       "anomalies": []
     },
     "invoice_026.pdf": {
@@ -1039,6 +1066,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "江流云",
       "check_code": "45107622683885160607",
+      "qr_payload": "01,32,,24002690147679764381,211.74,20240625",
       "anomalies": []
     },
     "invoice_027.pdf": {
@@ -1072,6 +1100,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "白砚秋",
       "check_code": "23124329212779979955",
+      "qr_payload": "01,32,,24002764160529751613,487.57,20300115",
       "anomalies": [
         "future_date"
       ]
@@ -1107,6 +1136,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "骆清扬",
       "check_code": "07151820377889255466",
+      "qr_payload": "01,32,,24002844905814770054,4925.53,20240209",
       "anomalies": []
     },
     "invoice_029.pdf": {
@@ -1160,6 +1190,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "温既白",
       "check_code": "16850542357332214188",
+      "qr_payload": "01,32,,24002951518644925192,3524.57,20250414",
       "anomalies": []
     },
     "invoice_030.pdf": {
@@ -1193,6 +1224,7 @@
       "remarks": "合成样例数据，仅供演示与评测（DocMind）",
       "issuer": "程慕远",
       "check_code": "24075818141247826137",
+      "qr_payload": "01,32,,24003092706537947383,19.28,20240607",
       "anomalies": []
     }
   }

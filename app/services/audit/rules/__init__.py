@@ -6,6 +6,7 @@ from app.services.audit.rules.invoice_date import InvoiceDateRule
 from app.services.audit.rules.line_items_sum import LineItemsSumRule
 from app.services.audit.rules.low_confidence import LowConfidenceRule
 from app.services.audit.rules.party_info import PartyInfoRule
+from app.services.audit.rules.qr_crosscheck import QrCrosscheckRule
 from app.services.audit.rules.tax_rate import TaxRateRule
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "LineItemsSumRule",
     "LowConfidenceRule",
     "PartyInfoRule",
+    "QrCrosscheckRule",
     "TaxRateRule",
 ]

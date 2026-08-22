@@ -41,6 +41,7 @@ def make_invoice(
     confidence: dict[str, float] | None = None,
     invoice_type: str | None = "电子发票（普通发票）",
     remarks: str | None = None,
+    qr_payload: str | None = None,
 ) -> InvoiceDocument:
     """Build a valid invoice document with sane defaults."""
     return InvoiceDocument(
@@ -58,4 +59,5 @@ def make_invoice(
         issuer=issuer,
         check_code=check_code,
         confidence=confidence or {"invoice_number": 1.0, "amount_including_tax": 1.0},
+        qr_payload=qr_payload,
     )

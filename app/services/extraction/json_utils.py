@@ -28,6 +28,8 @@ _CHINESE_FIELD_MAP: dict[str, str] = {
     "开票人": "issuer",
     "备注": "remarks",
     "置信度": "confidence",
+    "二维码内容": "qr_payload",
+    "qr_payload": "qr_payload",
 }
 
 _CHINESE_ITEM_MAP: dict[str, str] = {
@@ -59,6 +61,7 @@ _ALLOWED_DOC_FIELDS = {
     "remarks",
     "issuer",
     "check_code",
+    "qr_payload",
 }
 
 _NUMERIC_FIELDS = {"amount_excluding_tax", "tax_amount", "amount_including_tax"}

@@ -234,6 +234,13 @@ def generate_invoice_spec(rng: random.Random, idx: int) -> tuple[dict, list[str]
         issue_date = date(2030, 1, 15)
         anomalies.append("future_date")
 
+    # QR payload — normally consistent with the printed fields; for idx 22 we
+    # deliberately encode a different amount so the qr_crosscheck rule fires.
+    qr_payload = f"01,32,,{number},{incl_total:.2f},{issue_date.strftime('%Y%m%d')}"
+    if idx == 22:
+        qr_payload = f"01,32,,{number},{incl_total + 100.00:.2f},{issue_date.strftime('%Y%m%d')}"
+        anomalies.append("qr_mismatch")
+
     spec = {
         "invoice_type": _INVOICE_TYPE,
         "invoice_number": number,
@@ -248,6 +255,7 @@ def generate_invoice_spec(rng: random.Random, idx: int) -> tuple[dict, list[str]
         "remarks": "合成样例数据，仅供演示与评测（DocMind）",
         "issuer": issuer,
         "check_code": check_code,
+        "qr_payload": qr_payload,
         "anomalies": anomalies,
     }
     return spec, anomalies
@@ -281,7 +289,7 @@ def render_invoice_pdf(spec: dict, path: Path) -> None:
     style_label = ParagraphStyle("l", fontName=FONT, fontSize=9, leading=13)
     style_value = ParagraphStyle("v", fontName=FONT, fontSize=9, leading=13)
 
-    qr = _make_qr_png(spec["invoice_number"], spec["amount_including_tax"], spec["issue_date"])
+    qr = _make_qr_png(spec.get("qr_payload") or _default_qr_payload(spec))
 
     doc = SimpleDocTemplate(str(path), pagesize=A4,
                             leftMargin=18 * mm, rightMargin=18 * mm,
@@ -375,10 +383,17 @@ def render_invoice_pdf(spec: dict, path: Path) -> None:
     doc.build(story)
 
 
-def _make_qr_png(number: str, amount: float, issue_date_iso: str) -> BytesIO:
+def _default_qr_payload(spec: dict) -> str:
+    """Fallback payload derived from printed fields (for legacy specs)."""
+    return (
+        f"01,32,,{spec['invoice_number']},{spec['amount_including_tax']:.2f},"
+        f"{spec['issue_date'].replace('-', '')}"
+    )
+
+
+def _make_qr_png(payload: str) -> BytesIO:
     import qrcode
 
-    payload = f"01,32,,{number},{amount:.2f},{issue_date_iso.replace('-', '')}"
     img = qrcode.make(payload, box_size=6, border=1)
     buf = BytesIO()
     img.save(buf, format="PNG")

@@ -35,6 +35,9 @@ class InvoiceDocument(BaseModel):
 
     ``confidence`` maps field names (English, dotted for nested) to a value in
     [0, 1] produced by the vision model (or 1.0 when unavailable).
+    ``qr_payload`` is the raw string decoded from the invoice QR code (used by
+    the ``qr_crosscheck`` audit rule). ``corrections`` records deterministic
+    post-extraction repairs (e.g. tax-id check-character fixes).
     """
 
     invoice_type: str | None = None
@@ -50,4 +53,6 @@ class InvoiceDocument(BaseModel):
     remarks: str | None = None
     issuer: str | None = None
     check_code: str | None = None
+    qr_payload: str | None = None
+    corrections: dict[str, str] = Field(default_factory=dict)
     confidence: dict[str, ConfidenceValue] = Field(default_factory=dict)

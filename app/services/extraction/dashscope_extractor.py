@@ -7,10 +7,12 @@ import base64
 from pathlib import Path
 
 from app.core.config import Settings, get_settings
+from app.core.uscc import repair_uscc
 from app.models.invoice import InvoiceDocument
 from app.services.extraction.base import ExtractionError, Extractor
 from app.services.extraction.json_utils import extract_json, normalize_raw_invoice
 from app.services.extraction.pdf_utils import pdf_to_png_bytes
+from app.services.extraction.qr_utils import decode_qr
 
 _EXTRACTION_PROMPT = """你是一个专业的增值税发票信息抽取引擎。请从发票图片中提取所有字段，只输出一个 JSON 对象，不要输出任何解释或额外文字。
 
@@ -80,6 +82,7 @@ class DashScopeExtractor(Extractor):
         image_bytes, mime = pdf_to_png_bytes(
             file_path, dpi=self.settings.pdf_render_dpi
         )
+        qr_payload = decode_qr(image_bytes)
         errors: list[str] = []
         models = [
             m for m in (self.settings.vision_model_primary, self.settings.vision_model_fallback) if m
@@ -88,7 +91,11 @@ class DashScopeExtractor(Extractor):
             for attempt in range(2):  # retry once on flaky responses
                 try:
                     raw = self._call_model(model, image_bytes, mime)
-                    return normalize_raw_invoice(raw)
+                    doc = normalize_raw_invoice(raw)
+                    if qr_payload:
+                        doc.qr_payload = qr_payload
+                    self._repair_tax_ids(doc)
+                    return doc
                 except (ValueError, ExtractionError) as exc:
                     # parse-level failures are worth one retry
                     if attempt == 0:
@@ -101,6 +108,18 @@ class DashScopeExtractor(Extractor):
         raise ExtractionError(
             f"all vision models failed ({len(models)} tried): {'; '.join(errors)}"
         )
+
+    @staticmethod
+    def _repair_tax_ids(doc: InvoiceDocument) -> None:
+        """Fix wrong GB 32100-2015 check characters on extracted tax ids."""
+        for side in ("buyer", "seller"):
+            party = getattr(doc, side)
+            fixed, changed = repair_uscc(party.tax_id)
+            if changed:
+                party.tax_id = fixed
+                doc.corrections[f"{side}.tax_id"] = (
+                    "GB 32100-2015 check character repaired"
+                )
 
     def _call_model(self, model: str, image_bytes: bytes, mime: str) -> dict:
         b64 = base64.b64encode(image_bytes).decode("ascii")

@@ -43,7 +43,10 @@ class MockExtractor(Extractor):
         name = Path(file_path).name
         entry = self._ground_truth.get(name) or self._ground_truth.get(str(file_path))
         if isinstance(entry, dict) and entry:
-            return normalize_raw_invoice(entry)
+            doc = normalize_raw_invoice(entry)
+            if not doc.qr_payload:
+                doc.qr_payload = self._synthesize_payload(doc)
+            return doc
 
         digits = re.findall(r"\d+", name)
         number = (digits[0] if digits else "0").zfill(20)[:20]
@@ -53,4 +56,14 @@ class MockExtractor(Extractor):
             seller=InvoiceParty(name="Mock Seller Co."),
             amount_including_tax=100.0,
             confidence={"invoice_number": 1.0, "amount_including_tax": 1.0},
+        )
+
+    @staticmethod
+    def _synthesize_payload(doc: InvoiceDocument) -> str | None:
+        """Build a QR payload consistent with the document (for demo data)."""
+        if not doc.invoice_number or doc.amount_including_tax is None or not doc.issue_date:
+            return None
+        return (
+            f"01,32,,{doc.invoice_number},{doc.amount_including_tax:.2f},"
+            f"{doc.issue_date.strftime('%Y%m%d')}"
         )
