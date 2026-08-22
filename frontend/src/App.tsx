@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { getBatch, loadDemo, retryFailed, uploadInvoices } from "./api";
 import type { Batch } from "./types";
+import { AnalysisPanel } from "./components/AnalysisPanel";
 import { AuditPanel } from "./components/AuditPanel";
 import { GraphView } from "./components/GraphView";
 import { ResultsTable } from "./components/ResultsTable";
 import { UploadZone } from "./components/UploadZone";
 
-type Tab = "results" | "audit" | "graph";
+type Tab = "results" | "audit" | "analysis" | "graph";
+
+const TAB_ORDER: Tab[] = ["results", "audit", "analysis", "graph"];
 
 export default function App() {
   const [batchId, setBatchId] = useState<string | null>(null);
@@ -145,15 +148,28 @@ export default function App() {
       {batch && (
         <>
           <nav className="tabs">
-            {(["results", "audit", "graph"] as Tab[]).map((t) => (
-              <button
-                key={t}
-                className={`tab ${tab === t ? "active" : ""}`}
-                onClick={() => setTab(t)}
-              >
-                {t === "results" ? `Results (${batch.total})` : t === "audit" ? `Audit (${findingsTotal})` : "Graph"}
-              </button>
-            ))}
+            {TAB_ORDER.map((t) => {
+              const disabled = t === "analysis" && batch.status !== "done";
+              const label =
+                t === "results"
+                  ? `Results (${batch.total})`
+                  : t === "audit"
+                    ? `Audit (${findingsTotal})`
+                    : t === "analysis"
+                      ? "Analysis"
+                      : "Graph";
+              return (
+                <button
+                  key={t}
+                  className={`tab ${tab === t ? "active" : ""}`}
+                  disabled={disabled}
+                  title={disabled ? "Analysis is available after the batch finishes" : undefined}
+                  onClick={() => setTab(t)}
+                >
+                  {label}
+                </button>
+              );
+            })}
             <div className="tabs-spacer" />
             {batch.status === "done" && (
               <div className="export-group">
@@ -187,6 +203,12 @@ export default function App() {
             {tab === "audit" && (
               <AuditPanel findings={batch.findings} summary={batch.audit_summary} />
             )}
+            {tab === "analysis" &&
+              (batch.status === "done" ? (
+                <AnalysisPanel results={batch.results} />
+              ) : (
+                <p className="muted">Analysis is available once the batch finishes.</p>
+              ))}
             {tab === "graph" && <GraphView batchId={batch.id} batch={batch} />}
           </main>
         </>

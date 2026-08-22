@@ -712,6 +712,81 @@ body {
   gap: 8px;
 }
 
+/* ---- analysis ---- */
+
+.tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.analysis-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.analysis-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.analysis-filter input,
+.analysis-filter select {
+  padding: 6px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--sans);
+  min-width: 150px;
+}
+
+.analysis-filter input:focus,
+.analysis-filter select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.analysis-stats {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.analysis-chart {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.analysis-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.analysis-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 44px 0;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+}
+
+.analysis-table td.num,
+.analysis-table th.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
 /* ---- footer ---- */
 
 .footer {
