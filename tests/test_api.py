@@ -2,11 +2,14 @@
 
 import io
 import json
+import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
+from app.services.extraction.base import ExtractionError
 from app.services.extraction.mock_extractor import MockExtractor
 
 
@@ -22,6 +25,34 @@ def make_pdf_bytes() -> bytes:
     # Minimal placeholder PDF bytes are rejected by the pipeline's type
     # check before parsing, so any non-empty bytes are fine for routing tests.
     return b"%PDF-1.4 placeholder"
+
+
+class _FlakyExtractor(MockExtractor):
+    """Fails its first extraction call, then behaves like the mock.
+
+    Filename-agnostic on purpose: upload dedup can rename files (stale
+    ``data/uploads`` on disk), so the test targets whichever file is
+    processed first instead of a hard-coded name.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.failed = False
+
+    def extract(self, file_path):
+        if not self.failed:
+            self.failed = True
+            raise ExtractionError("simulated transient failure")
+        return super().extract(file_path)
+
+
+def _wait_done(client: TestClient, batch_id: str, tries: int = 30) -> dict:
+    for _ in range(tries):
+        batch = client.get(f"/api/batches/{batch_id}").json()
+        if batch["status"] in {"done", "failed"}:
+            return batch
+        time.sleep(0.05)
+    raise AssertionError("batch did not finish in time")
 
 
 class TestHealth:
@@ -134,3 +165,52 @@ class TestExport:
         batch_id = self._load_batch(client)
         r = client.get(f"/api/batches/{batch_id}/export", params={"format": "xml"})
         assert r.status_code == 400
+
+
+class TestBatchSource:
+    def test_upload_batch_source_is_upload(self, client):
+        files = [("files", ("inv.pdf", make_pdf_bytes(), "application/pdf"))]
+        r = client.post("/api/invoices/upload", files=files)
+        bid = r.json()["batch_id"]
+        _wait_done(client, bid)
+        batch = client.get(f"/api/batches/{bid}").json()
+        assert batch["source"] == "upload"
+
+    def test_demo_batch_source_is_demo(self, client):
+        bid = client.post("/api/demo/load", json={"count": 2}).json()["batch_id"]
+        batch = client.get(f"/api/batches/{bid}").json()
+        assert batch["source"] == "demo"
+
+
+class TestRetry:
+    def _upload_with_flaky(self):
+        app = create_app(extractor=_FlakyExtractor())
+        app.state.extractor = app.state.extractor  # already the flaky one
+        return TestClient(app)
+
+    def test_retry_recovers_failed_file(self):
+        with self._upload_with_flaky() as client:
+            files = [
+                ("files", ("inv1.pdf", make_pdf_bytes(), "application/pdf")),
+                ("files", ("inv2.pdf", make_pdf_bytes(), "application/pdf")),
+            ]
+            bid = client.post("/api/invoices/upload", files=files).json()["batch_id"]
+            batch = _wait_done(client, bid)
+            failed = [i for i, r in enumerate(batch["results"]) if r and not r["success"]]
+            assert len(failed) == 1  # the flaky extractor failed exactly once
+
+            r = client.post(f"/api/batches/{bid}/retry", json={"indices": failed})
+            assert r.status_code == 200
+            batch = _wait_done(client, bid)
+            assert batch["results"][failed[0]]["success"] is True  # recovered
+
+    def test_retry_validation(self, client):
+        bid = client.post("/api/demo/load", json={"count": 2}).json()["batch_id"]
+        r = client.post(f"/api/batches/{bid}/retry", json={"indices": []})
+        assert r.status_code == 400
+        r = client.post(f"/api/batches/{bid}/retry", json={"indices": [99]})
+        assert r.status_code == 400
+
+    def test_retry_unknown_batch_404(self, client):
+        r = client.post("/api/batches/nope/retry", json={"indices": [0]})
+        assert r.status_code == 404

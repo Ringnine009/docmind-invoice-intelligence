@@ -21,11 +21,12 @@ class BatchStore:
         self._lock = threading.Lock()
         self._cache: dict[str, dict] = {}
 
-    def create(self, files: list[str]) -> str:
+    def create(self, files: list[str], source: str = "upload") -> str:
         batch_id = uuid.uuid4().hex[:12]
         batch = {
             "id": batch_id,
             "status": "pending",
+            "source": source,  # "upload" (real extraction) | "demo" (mock)
             "total": len(files),
             "done": 0,
             "files": files,

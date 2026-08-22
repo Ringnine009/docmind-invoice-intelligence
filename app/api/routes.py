@@ -11,6 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Body, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
+from pydantic import BaseModel
 
 from app.models.invoice import InvoiceDocument
 from app.services.audit.base import list_rule_metadata
@@ -102,13 +103,84 @@ async def upload_invoices(request: Request, files: list[UploadFile] = File(...))
             out.write(await pdf.read())
         names.append(target.name)
 
-    batch_id = request.app.state.store.create(names)
+    batch_id = request.app.state.store.create(names, source="upload")
     asyncio.create_task(_run_batch(request.app, batch_id))
     return {"batch_id": batch_id, "total": len(names), "status": "pending"}
 
 
 @router.get("/api/batches/{batch_id}")
 async def get_batch(batch_id: str, request: Request):
+    return _get_batch_or_404(request, batch_id)
+
+
+class _RetryRequest(BaseModel):
+    indices: list[int]
+
+
+@router.post("/api/batches/{batch_id}/retry")
+async def retry_batch(batch_id: str, payload: _RetryRequest, request: Request):
+    """Re-extract specific (failed) files of a finished batch, then re-audit."""
+    batch = _get_batch_or_404(request, batch_id)
+    if batch["status"] in {"pending", "running"}:
+        raise HTTPException(status_code=409, detail="batch still running")
+    indices = sorted(set(payload.indices))
+    if not indices:
+        raise HTTPException(status_code=400, detail="no indices provided")
+    if any(i < 0 or i >= batch["total"] for i in indices):
+        raise HTTPException(status_code=400, detail="index out of range")
+
+    extractor = (
+        MockExtractor()
+        if batch.get("source") == "demo"
+        else request.app.state.extractor
+    )
+    settings = request.app.state.settings
+    upload_dir = settings.data_path / "uploads"
+
+    request.app.state.store.update(batch_id, status="running")
+    results = list(batch["results"])
+    try:
+        for idx in indices:
+            filename = batch["files"][idx]
+            path = upload_dir / filename if batch.get("source") != "demo" else filename
+            try:
+                doc = await asyncio.to_thread(extractor.extract, path)
+                results[idx] = {
+                    "filename": filename,
+                    "success": True,
+                    "invoice_number": doc.invoice_number,
+                    "doc": doc.model_dump(mode="json"),
+                    "error": None,
+                }
+            except Exception as exc:
+                results[idx] = {
+                    "filename": filename,
+                    "success": False,
+                    "invoice_number": None,
+                    "doc": None,
+                    "error": str(exc),
+                }
+            request.app.state.store.update(
+                batch_id,
+                results=list(results),
+                done=sum(1 for r in results if r is not None),
+            )
+
+        docs = [
+            InvoiceDocument.model_validate(r["doc"]) for r in results if r and r.get("doc")
+        ]
+        findings, summary, graph, insights = _run_audit_and_graph(docs, settings)
+        request.app.state.store.update(
+            batch_id,
+            status="done",
+            findings=findings,
+            audit_summary=summary,
+            graph=graph,
+            insights=insights,
+            completed_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
+        )
+    except Exception as exc:
+        request.app.state.store.update(batch_id, status="failed", errors=[str(exc)])
     return _get_batch_or_404(request, batch_id)
 
 
@@ -169,7 +241,7 @@ async def load_demo(request: Request, count: Optional[int] = Body(default=10, em
         )
 
     files = sorted(extractor._ground_truth.keys())[:count]
-    batch_id = request.app.state.store.create(files)
+    batch_id = request.app.state.store.create(files, source="demo")
     results: list[dict] = []
     for filename in files:
         try:
