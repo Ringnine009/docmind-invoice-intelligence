@@ -3,6 +3,7 @@ import type { BatchResult, InvoiceDoc } from "../types";
 
 interface Props {
   results: (BatchResult | null)[];
+  onRetry?: (indices: number[]) => void;
 }
 
 function ConfidenceBar({ field, value }: { field: string; value: number }) {
@@ -31,6 +32,7 @@ function InvoiceDetail({ doc }: { doc: InvoiceDoc }) {
     ["issuer", doc.issuer],
     ["check_code", doc.check_code],
   ];
+  const corrections = Object.entries(doc.corrections ?? {});
   return (
     <div className="detail">
       <div className="detail-cols">
@@ -45,6 +47,15 @@ function InvoiceDetail({ doc }: { doc: InvoiceDoc }) {
               ))}
             </tbody>
           </table>
+          {corrections.length > 0 && (
+            <div className="correction-note">
+              {corrections.map(([field, note]) => (
+                <div key={field}>
+                  <strong>{field}</strong>: {note}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="detail-confidence">
             <p className="muted small" style={{ marginTop: 8 }}>model confidence</p>
             {Object.entries(doc.confidence).slice(0, 12).map(([k, v]) => (
@@ -75,7 +86,7 @@ function InvoiceDetail({ doc }: { doc: InvoiceDoc }) {
   );
 }
 
-export function ResultsTable({ results }: Props) {
+export function ResultsTable({ results, onRetry }: Props) {
   const [open, setOpen] = useState<Set<number>>(new Set());
   const rows = results.filter((r): r is BatchResult => r !== null);
 
@@ -107,7 +118,13 @@ export function ResultsTable({ results }: Props) {
       </thead>
       <tbody>
         {rows.map((r, i) => (
-          <ResultRow key={r.filename} r={r} open={open.has(i)} onToggle={() => toggle(i)} />
+          <ResultRow
+            key={r.filename}
+            r={r}
+            open={open.has(i)}
+            onToggle={() => toggle(i)}
+            onRetry={onRetry ? () => onRetry([i]) : undefined}
+          />
         ))}
       </tbody>
     </table>
@@ -118,10 +135,12 @@ function ResultRow({
   r,
   open,
   onToggle,
+  onRetry,
 }: {
   r: BatchResult;
   open: boolean;
   onToggle: () => void;
+  onRetry?: () => void;
 }) {
   const doc = r.doc;
   return (
@@ -139,6 +158,11 @@ function ResultRow({
         <td>{doc?.buyer.name || "—"}</td>
         <td className="num mono">
           {doc?.amount_including_tax != null ? `¥${doc.amount_including_tax.toFixed(2)}` : "—"}
+          {!r.success && onRetry && (
+            <button className="retry-btn" style={{ marginLeft: 8 }} onClick={onRetry}>
+              Retry
+            </button>
+          )}
         </td>
       </tr>
       {open && (

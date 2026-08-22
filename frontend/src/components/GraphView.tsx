@@ -8,16 +8,16 @@ interface Props {
 }
 
 const NODE_COLORS: Record<string, string> = {
-  company: "#4f8cff",
-  invoice: "#3fb950",
-  product: "#d29922",
+  company: "#2563eb",
+  invoice: "#16a34a",
+  product: "#ca8a04",
 };
 
 const EDGE_COLORS: Record<string, string> = {
-  bought: "#3fb950",
-  sold: "#4f8cff",
-  contains: "#d29922",
-  transaction: "#f0883e",
+  bought: "#16a34a",
+  sold: "#2563eb",
+  contains: "#ca8a04",
+  transaction: "#ea580c",
 };
 
 export function GraphView({ batchId }: Props) {
@@ -56,8 +56,8 @@ export function GraphView({ batchId }: Props) {
         to: e.target,
         label: e.relation,
         arrows: "to",
-        color: { color: EDGE_COLORS[e.relation] ?? "#3d444d" },
-        font: { color: "#8b949e", size: 9, strokeWidth: 0 },
+        color: { color: EDGE_COLORS[e.relation] ?? "#d1d5db" },
+        font: { color: "#6d737c", size: 9, strokeWidth: 0 },
       }));
       network = new Network(
         containerRef.current,
@@ -69,7 +69,7 @@ export function GraphView({ batchId }: Props) {
             product: { color: NODE_COLORS.product, shape: "dot", size: 10 },
           },
           nodes: {
-            font: { color: "#c9d1d9", size: 12, face: "monospace" },
+            font: { color: "#17181c", size: 12, face: "monospace" },
             borderWidth: 0,
           },
           edges: { smooth: { enabled: true, type: "continuous", roundness: 0.5 } },

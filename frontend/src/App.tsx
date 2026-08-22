@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getBatch, loadDemo, uploadInvoices } from "./api";
+import { getBatch, loadDemo, retryFailed, uploadInvoices } from "./api";
 import type { Batch } from "./types";
 import { AuditPanel } from "./components/AuditPanel";
 import { GraphView } from "./components/GraphView";
@@ -14,6 +14,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("results");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!batchId) return;
@@ -38,7 +39,7 @@ export default function App() {
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [batchId]);
+  }, [batchId, refreshKey]);
 
   async function handleDemo() {
     setBusy(true);
@@ -68,9 +69,21 @@ export default function App() {
     }
   }
 
+  async function handleRetry(indices: number[]) {
+    if (!batchId || indices.length === 0) return;
+    setError(null);
+    try {
+      await retryFailed(batchId, indices);
+      setRefreshKey((k) => k + 1); // restart polling
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   const running = batch?.status === "pending" || batch?.status === "running";
   const progress = batch && batch.total > 0 ? Math.round((batch.done / batch.total) * 100) : 0;
   const succeeded = batch?.results.filter((r) => r?.success).length ?? 0;
+  const failed = batch?.results.filter((r) => r && !r.success).length ?? 0;
   const findingsTotal = batch?.audit_summary?.total ?? 0;
 
   return (
@@ -84,6 +97,11 @@ export default function App() {
           </div>
         </div>
         <div className="topbar-actions">
+          {batch && (
+            <span className={`chip source-${batch.source}`} title={batch.source}>
+              {batch.source === "demo" ? "DEMO · synthetic data" : "REAL UPLOAD"}
+            </span>
+          )}
           {batchId && (
             <span className="chip mono" title={batchId}>
               batch {batchId.slice(0, 8)}
@@ -117,7 +135,8 @@ export default function App() {
             </div>
           ) : (
             <span className="mono">
-              {succeeded}/{batch.total} extracted · {findingsTotal} findings
+              {succeeded}/{batch.total} extracted{failed > 0 ? ` · ${failed} failed` : ""} ·{" "}
+              {findingsTotal} findings
             </span>
           )}
         </section>
@@ -138,6 +157,19 @@ export default function App() {
             <div className="tabs-spacer" />
             {batch.status === "done" && (
               <div className="export-group">
+                {failed > 0 && (
+                  <button
+                    className="btn small ghost"
+                    onClick={() => {
+                      const indices = batch.results
+                        .map((r, i) => (r && !r.success ? i : -1))
+                        .filter((i) => i >= 0);
+                      handleRetry(indices);
+                    }}
+                  >
+                    Retry {failed} failed
+                  </button>
+                )}
                 <a className="btn small" href={`/api/batches/${batch.id}/export?format=csv`}>
                   Export CSV
                 </a>
@@ -149,7 +181,9 @@ export default function App() {
           </nav>
 
           <main className="content">
-            {tab === "results" && <ResultsTable results={batch.results} />}
+            {tab === "results" && (
+              <ResultsTable results={batch.results} onRetry={handleRetry} />
+            )}
             {tab === "audit" && (
               <AuditPanel findings={batch.findings} summary={batch.audit_summary} />
             )}
@@ -163,7 +197,7 @@ export default function App() {
           <p>Upload invoice PDFs or load the synthetic demo batch to get started.</p>
           <p className="muted">
             Extraction uses a Qwen vision model (DashScope); the audit engine then checks
-            duplicates, arithmetic, tax rates and party information.
+            duplicates, arithmetic, tax rates, QR codes and party information.
           </p>
         </main>
       )}

@@ -57,6 +57,14 @@ export function getAudit(batchId: string): Promise<{ findings: AuditFinding[] }>
   return request(`/api/batches/${batchId}/audit`);
 }
 
+export function retryFailed(batchId: string, indices: number[]): Promise<Batch> {
+  return request<Batch>(`/api/batches/${batchId}/retry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ indices }),
+  });
+}
+
 export function exportUrl(batchId: string, format: "csv" | "json"): string {
   return `/api/batches/${batchId}/export?format=${format}`;
 }

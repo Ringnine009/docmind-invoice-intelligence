@@ -32,6 +32,8 @@ export interface InvoiceDoc {
   remarks: string | null;
   issuer: string | null;
   check_code: string | null;
+  qr_payload: string | null;
+  corrections: Record<string, string>;
   confidence: Record<string, number>;
 }
 
@@ -82,6 +84,7 @@ export interface GraphData {
 export interface Batch {
   id: string;
   status: "pending" | "running" | "done" | "failed";
+  source: "upload" | "demo";
   total: number;
   done: number;
   files: string[];

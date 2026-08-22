@@ -1,19 +1,22 @@
-/* DocMind dashboard — dark, Linear-inspired, hairline borders. */
+/* DocMind dashboard — light theme.
+   Canvas #fafbfc · panels #ffffff/#f4f5f7 · borders rgba(0,0,0,.08)
+   Text #17181c · secondary #6d737c · accent #2563eb (blue family). */
 
 :root {
-  --bg: #0a0b0d;
-  --panel: #101317;
-  --panel2: #14181d;
-  --border: #20262d;
-  --border-soft: #1a1f24;
-  --text: #e6e8ea;
-  --muted: #8b949e;
-  --accent: #4f8cff;
-  --ok: #3fb950;
-  --critical: #f85149;
-  --error: #f0883e;
-  --warning: #d29922;
-  --info: #8b949e;
+  --bg: #fafbfc;
+  --panel: #ffffff;
+  --panel2: #f4f5f7;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-soft: rgba(0, 0, 0, 0.06);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --text: #17181c;
+  --muted: #6d737c;
+  --accent: #2563eb;
+  --ok: #16a34a;
+  --critical: #dc2626;
+  --error: #ea580c;
+  --warning: #ca8a04;
+  --info: #6d737c;
   --mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
   --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -32,6 +35,27 @@ body {
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.55;
+}
+
+/* light scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.22) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+  border: 2px solid var(--bg);
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .mono {
@@ -63,7 +87,7 @@ body {
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .brand {
@@ -94,6 +118,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* ---- buttons / chips ---- */
@@ -101,14 +126,14 @@ body {
 .btn {
   display: inline-block;
   padding: 7px 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
-  background: var(--panel2);
+  background: var(--panel);
   color: var(--text);
   font-size: 13px;
   text-decoration: none;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .btn:hover {
@@ -132,26 +157,39 @@ body {
 .chip {
   display: inline-block;
   padding: 3px 9px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
   font-size: 12px;
   color: var(--muted);
+  background: var(--panel);
 }
 
 .chip.status.done {
   color: var(--ok);
-  border-color: rgba(63, 185, 80, 0.4);
+  border-color: rgba(22, 163, 74, 0.35);
 }
 
 .chip.status.running,
 .chip.status.pending {
   color: var(--warning);
-  border-color: rgba(210, 153, 34, 0.4);
+  border-color: rgba(202, 138, 4, 0.4);
 }
 
 .chip.status.failed {
   color: var(--critical);
-  border-color: rgba(248, 81, 73, 0.4);
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.chip.source-demo {
+  color: var(--warning);
+  border-color: rgba(202, 138, 4, 0.4);
+  background: rgba(202, 138, 4, 0.06);
+}
+
+.chip.source-upload {
+  color: var(--ok);
+  border-color: rgba(22, 163, 74, 0.35);
+  background: rgba(22, 163, 74, 0.06);
 }
 
 /* ---- banner ---- */
@@ -165,16 +203,16 @@ body {
 }
 
 .banner.error {
-  border-color: rgba(248, 81, 73, 0.4);
-  background: rgba(248, 81, 73, 0.08);
-  color: #ffb4ae;
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.06);
+  color: #b91c1c;
 }
 
 /* ---- upload ---- */
 
 .upload {
   margin-top: 18px;
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--border-strong);
   border-radius: 10px;
   padding: 26px 20px;
   text-align: center;
@@ -185,7 +223,7 @@ body {
 .upload:hover,
 .upload.dragging {
   border-color: var(--accent);
-  background: rgba(79, 140, 255, 0.04);
+  background: rgba(37, 99, 235, 0.04);
 }
 
 .upload-icon {
@@ -206,7 +244,7 @@ body {
   gap: 16px;
   margin-top: 16px;
   padding: 10px 14px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--panel);
 }
@@ -222,7 +260,7 @@ body {
   flex: 1;
   height: 6px;
   border-radius: 999px;
-  background: var(--panel2);
+  background: #e5e7eb;
   overflow: hidden;
 }
 
@@ -240,7 +278,7 @@ body {
   align-items: center;
   gap: 4px;
   margin-top: 18px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
 }
 
 .tab {
@@ -285,7 +323,7 @@ body {
   text-align: center;
   padding: 60px 0;
   color: var(--text);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--panel);
 }
@@ -304,13 +342,13 @@ body {
   font-weight: 500;
   font-size: 12px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-strong);
   white-space: nowrap;
 }
 
 .results td {
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
 
@@ -330,6 +368,21 @@ body {
 
 .row-failed td {
   color: var(--critical);
+}
+
+.retry-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  color: var(--accent);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.retry-btn:hover {
+  border-color: var(--accent);
+  background: rgba(37, 99, 235, 0.05);
 }
 
 .detail-row td {
@@ -364,6 +417,14 @@ body {
   width: 170px;
 }
 
+.correction-note {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--warning);
+  border-left: 3px solid rgba(202, 138, 4, 0.5);
+  padding-left: 8px;
+}
+
 .conf-row {
   display: flex;
   align-items: center;
@@ -384,7 +445,7 @@ body {
   flex: 1;
   height: 5px;
   border-radius: 999px;
-  background: var(--panel2);
+  background: #e5e7eb;
   overflow: hidden;
 }
 
@@ -418,7 +479,7 @@ body {
   gap: 10px;
   padding: 7px 10px;
   margin-top: 6px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--panel2);
   font-size: 12px;
@@ -431,8 +492,8 @@ body {
 /* ---- audit ---- */
 
 .audit-clean {
-  border: 1px solid rgba(63, 185, 80, 0.35);
-  background: rgba(63, 185, 80, 0.06);
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  background: rgba(22, 163, 74, 0.05);
   border-radius: 10px;
   padding: 22px;
   text-align: center;
@@ -519,7 +580,7 @@ body {
 }
 
 .finding {
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-left-width: 3px;
   border-radius: 8px;
   padding: 10px 14px;
@@ -548,6 +609,7 @@ body {
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .badge {
@@ -561,22 +623,22 @@ body {
 
 .badge.critical {
   color: var(--critical);
-  border-color: rgba(248, 81, 73, 0.5);
+  border-color: rgba(220, 38, 38, 0.45);
 }
 
 .badge.error {
   color: var(--error);
-  border-color: rgba(240, 136, 62, 0.5);
+  border-color: rgba(234, 88, 12, 0.45);
 }
 
 .badge.warning {
   color: var(--warning);
-  border-color: rgba(210, 153, 34, 0.5);
+  border-color: rgba(202, 138, 4, 0.45);
 }
 
 .badge.info {
   color: var(--info);
-  border-color: rgba(139, 148, 158, 0.5);
+  border-color: rgba(109, 115, 124, 0.45);
 }
 
 .finding-rule {
@@ -594,8 +656,9 @@ body {
   padding: 8px 10px;
   border-radius: 6px;
   background: var(--panel2);
+  border: 1px solid var(--border);
   font-size: 11px;
-  color: var(--muted);
+  color: #4b5563;
   overflow-x: auto;
   max-height: 220px;
 }
@@ -616,13 +679,13 @@ body {
 
 .graph-canvas {
   height: 560px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--panel);
+  background: var(--bg);
 }
 
 .graph-side {
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 14px;
   background: var(--panel);
@@ -654,7 +717,7 @@ body {
 .footer {
   margin-top: 28px;
   padding-top: 14px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 12px;
 }
