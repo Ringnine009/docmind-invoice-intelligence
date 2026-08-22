@@ -20,6 +20,12 @@ polished UI.
 ![frontend](https://img.shields.io/badge/frontend-React%20%2B%20TS%20%2B%20Vite-61dafb)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
+## Screenshots
+
+| Extraction results | Audit findings | Analysis (trend chart) | Knowledge graph |
+|---|---|---|---|
+| ![results](docs/screenshots/2-results.png) | ![audit](docs/screenshots/3-audit.png) | ![analysis](docs/screenshots/4-analysis.png) | ![graph](docs/screenshots/5-graph.png) |
+
 ---
 
 ## Motivation
