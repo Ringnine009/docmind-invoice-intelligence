@@ -70,6 +70,10 @@ def main() -> int:
         rel = path.relative_to(REPO_ROOT)
         if any(part in _SKIP_DIRS for part in rel.parts):
             continue
+        # any `_source*` directory holds the original coursework (leaked key
+        # + real PII) — never scan or commit it
+        if any(part.startswith("_source") for part in rel.parts):
+            continue
         if path.name in _SKIP_FILES:
             continue
         scan_file(path)

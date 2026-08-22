@@ -102,11 +102,19 @@ transaction edges).
 
 4. **Knowledge graph** — networkx-based, deterministic node ids, aggregated
    seller→buyer "transaction" edges; JSON API + interactive vis-network view.
+   The graph view is a **selectable-object explorer**: filter by node type /
+   company / minimum amount, click any node to focus its neighbourhood
+   (others dim), with a legend, live stats and edge styles per relation.
 5. **Analysis view** — a dependency-free SVG trend chart of invoice amounts
    grouped by issue date (auto-switches to monthly buckets when there are
    more than 30 distinct dates), with date-range and buyer/seller filters and
-   a detail table — parity with the coursework original's "数据分析" tab.
-6. **Benchmark** — 30 synthetic invoices with a machine-readable ground truth
+   a detail table — parity with the coursework original's "数据分析" tab —
+   plus hand-drawn SVG audit charts (findings by rule and by severity).
+6. **Invoice detail drawer** — click any results row (or a graph invoice
+   node) to slide out a detail panel: fields with confidence bars, audit
+   evidence for that invoice, and its graph connections that jump back to the
+   focused node in the graph.
+7. **Benchmark** — 30 synthetic invoices with a machine-readable ground truth
    (`benchmark/ground_truth.json`); `scripts/run_benchmark.py` reports
    field-level accuracy + mean confidence (see [docs/benchmark.md](docs/benchmark.md)).
 7. **Privacy-safe samples** — original coursework invoices contained real PII

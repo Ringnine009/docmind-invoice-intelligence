@@ -25,7 +25,7 @@ benchmark/results/
 *.log
 
 # --- Coursework source (contains real PII + hardcoded secrets) ---
-_source/
+_source*/
 
 # --- Node / frontend ---
 node_modules/

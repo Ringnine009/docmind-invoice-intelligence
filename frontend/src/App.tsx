@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { getBatch, loadDemo, retryFailed, uploadInvoices } from "./api";
-import type { Batch } from "./types";
+import type { Batch, GraphNode } from "./types";
 import { AnalysisPanel } from "./components/AnalysisPanel";
 import { AuditPanel } from "./components/AuditPanel";
 import { GraphView } from "./components/GraphView";
+import { InvoiceDrawer, type DrawerPayload } from "./components/InvoiceDrawer";
 import { ResultsTable } from "./components/ResultsTable";
 import { UploadZone } from "./components/UploadZone";
 
@@ -18,6 +19,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [drawer, setDrawer] = useState<DrawerPayload | null>(null);
+  const [graphFocus, setGraphFocus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!batchId) return;
@@ -81,6 +84,34 @@ export default function App() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  function handleRowClick(index: number) {
+    const r = batch?.results[index];
+    if (!r) return;
+    setDrawer({ kind: "invoice", result: r, index });
+  }
+
+  function handleGraphNodeClick(node: GraphNode) {
+    if (!batch) return;
+    if (node.type === "invoice") {
+      const number = node.properties.number as string | undefined;
+      const idx = batch.results.findIndex(
+        (r) => r?.success && r.doc && r.doc.invoice_number === number
+      );
+      const r = idx >= 0 ? batch.results[idx] : null;
+      if (r && r.doc) {
+        setDrawer({ kind: "invoice", result: r, index: idx });
+        return;
+      }
+    }
+    setDrawer({ kind: "node", node });
+  }
+
+  function handleFocusGraphNode(nodeId: string) {
+    setGraphFocus(nodeId);
+    setDrawer(null);
+    setTab("graph");
   }
 
   const running = batch?.status === "pending" || batch?.status === "running";
@@ -198,18 +229,30 @@ export default function App() {
 
           <main className="content">
             {tab === "results" && (
-              <ResultsTable results={batch.results} onRetry={handleRetry} />
+              <ResultsTable
+                results={batch.results}
+                onRetry={handleRetry}
+                onRowClick={handleRowClick}
+              />
             )}
             {tab === "audit" && (
               <AuditPanel findings={batch.findings} summary={batch.audit_summary} />
             )}
             {tab === "analysis" &&
               (batch.status === "done" ? (
-                <AnalysisPanel results={batch.results} />
+                <AnalysisPanel results={batch.results} findings={batch.findings} />
               ) : (
                 <p className="muted">Analysis is available once the batch finishes.</p>
               ))}
-            {tab === "graph" && <GraphView batchId={batch.id} batch={batch} />}
+            {tab === "graph" && (
+              <GraphView
+                batchId={batch.id}
+                batch={batch}
+                focusRequest={graphFocus}
+                onFocusHandled={() => setGraphFocus(null)}
+                onNodeClick={handleGraphNodeClick}
+              />
+            )}
           </main>
         </>
       )}
@@ -227,6 +270,14 @@ export default function App() {
       <footer className="footer">
         <span>DocMind · synthetic sample data only · no real PII</span>
       </footer>
+
+      <InvoiceDrawer
+        payload={drawer}
+        findings={batch?.findings ?? []}
+        graph={batch?.graph ?? null}
+        onClose={() => setDrawer(null)}
+        onFocusGraphNode={handleFocusGraphNode}
+      />
     </div>
   );
 }

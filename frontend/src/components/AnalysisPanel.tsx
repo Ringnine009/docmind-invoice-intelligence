@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import type { BatchResult } from "../types";
+import type { AuditFinding, BatchResult } from "../types";
+import { AuditCharts } from "./AuditCharts";
 
 interface Props {
   results: (BatchResult | null)[];
+  findings: AuditFinding[];
 }
 
 interface Row {
@@ -202,7 +204,7 @@ function Chart({ series }: { series: SeriesPoint[] }) {
 
 // ---- component -------------------------------------------------------------
 
-export function AnalysisPanel({ results }: Props) {
+export function AnalysisPanel({ results, findings }: Props) {
   const rows = useMemo(() => collectRows(results), [results]);
   const buyers = useMemo(() => uniqueSorted(rows.map((r) => r.buyer)), [rows]);
   const sellers = useMemo(() => uniqueSorted(rows.map((r) => r.seller)), [rows]);
@@ -291,6 +293,8 @@ export function AnalysisPanel({ results }: Props) {
       <div className="analysis-chart">
         <Chart series={series} />
       </div>
+
+      <AuditCharts findings={findings} />
 
       <table className="results analysis-table">
         <thead>
