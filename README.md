@@ -64,16 +64,22 @@ flowchart LR
 ```
 
 Pipeline per batch: **extract** (PDF → PNG @200dpi → Qwen vision model →
-normalize to `InvoiceDocument`) → **audit** (every registered rule over the
-whole batch, findings sorted by severity) → **graph** (companies / invoices /
-products with aggregated transaction edges).
+normalize to `InvoiceDocument`, decode the QR code, repair tax-id checksums)
+→ **audit** (every registered rule over the whole batch, findings sorted by
+severity) → **graph** (companies / invoices / products with aggregated
+transaction edges).
 
 ## Feature highlights
 
 1. **Multimodal extraction with confidence** — each field carries a model
    confidence in `[0, 1]`; a dedicated audit rule flags low-confidence fields
    so reviewers know what to double-check.
-2. **Extensible audit engine** — one class per rule, auto-registered via
+2. **QR code cross-check** — the invoice QR code (which encodes number, total
+   and date) is decoded with OpenCV and compared against the vision
+   extraction; mismatches fire an audit finding (tampering / OCR-error
+   detector). Deterministic **tax-id repair** fixes wrong GB 32100-2015 check
+   characters after extraction (recorded in `doc.corrections`).
+3. **Extensible audit engine** — one class per rule, auto-registered via
    subclassing; `/api/rules` lists them, the engine runs them all:
 
    | rule_id | what it checks | severity |
@@ -85,16 +91,20 @@ products with aggregated transaction edges).
    | `party_info` | missing/invalid/checksum-failing tax ids, missing names, buyer == seller | ERROR/WARNING |
    | `invoice_date` | missing or future issue date | WARNING |
    | `low_confidence` | any field below the confidence threshold | WARNING |
+   | `qr_crosscheck` | QR-encoded number/total/date vs. extracted fields | ERROR/WARNING |
 
-3. **Knowledge graph** — networkx-based, deterministic node ids, aggregated
+4. **Knowledge graph** — networkx-based, deterministic node ids, aggregated
    seller→buyer "transaction" edges; JSON API + interactive vis-network view.
-4. **Benchmark** — 30 synthetic invoices with a machine-readable ground truth
+5. **Benchmark** — 30 synthetic invoices with a machine-readable ground truth
    (`benchmark/ground_truth.json`); `scripts/run_benchmark.py` reports
    field-level accuracy + mean confidence (see [docs/benchmark.md](docs/benchmark.md)).
-5. **Privacy-safe samples** — original coursework invoices contained real PII
+6. **Privacy-safe samples** — original coursework invoices contained real PII
    and a leaked API key; the repository ships only **synthetic** invoices
    (see [docs/data-compliance.md](docs/data-compliance.md)) and a secret
    scanner ([scripts/scan_secrets.py](scripts/scan_secrets.py)).
+7. **Honest demo data** — the UI labels every batch as `REAL UPLOAD` or
+   `DEMO · synthetic data`; failed files can be retried individually or as a
+   group (`POST /api/batches/{id}/retry`).
 
 ## Quick start
 
@@ -139,6 +149,7 @@ extractor) or upload your own PDFs (real Qwen extraction).
 | `GET` | `/api/batches/{id}/audit` | audit findings + severity summary |
 | `GET` | `/api/batches/{id}/graph` | knowledge graph + insights |
 | `GET` | `/api/batches/{id}/export?format=csv\|json` | export batch |
+| `POST` | `/api/batches/{id}/retry` | re-extract failed files, then re-audit |
 | `POST` | `/api/demo/load` | offline demo batch (mock extractor) |
 
 Interactive docs at `/api/docs`.
@@ -185,7 +196,7 @@ frontend/             React + TS + Vite dashboard (upload/progress/results/audit
 scripts/              synthetic data generator, benchmark, smoke test, secret scan, server check
 samples/              30 synthetic invoice PDFs (reportlab, Chinese e-invoice layout)
 benchmark/            ground_truth.json + benchmark results
-tests/                90+ pytest tests (offline)
+tests/                120+ pytest tests (offline)
 docs/                 benchmark report, data-compliance, NOTICE (credits)
 ```
 
@@ -197,7 +208,10 @@ docs/                 benchmark report, data-compliance, NOTICE (credits)
   [docs/benchmark.md](docs/benchmark.md) for numbers.
 - Vision models occasionally return malformed JSON or internally-consistent
   hallucinated totals; the extractor retries and repairs, the audit engine
-  cross-checks, but *no automated system can fully replace a human reviewer*.
+  cross-checks (incl. the QR code), but *no automated system can fully
+  replace a human reviewer*.
+- QR decoding is done on the 200 dpi page render; very low-resolution scans
+  may fail to decode (the `qr_crosscheck` rule then silently skips).
 - Batch state is persisted as JSON files (single-node); a SQLite/Postgres
   backend would scale to larger deployments.
 - No auth/RBAC yet — intended for internal/trusted use.
@@ -229,14 +243,18 @@ FastAPI 分层架构，密钥全部走环境变量（pydantic-settings），使�
 - **审计引擎**：批量自动稽查发票号码重复、价税合计算术不一致、税率
   异常（0/1/3/5/6/9/13%）、购销方信息缺失/税号校验位错误/自开发票等，
   规则采用注册机制可自由扩展，每条告警含规则名、证据与严重级别；
+- **二维码交叉校验**：用 OpenCV 解码发票二维码（含号码/金额/日期），与
+  视觉抽取结果比对，不一致即告警（防篡改/OCR 误差检测）；税号 GB 32100
+  校验位错误自动修复并记录；
 - **知识图谱**：基于 networkx 构建公司-发票-商品关系图并提供 JSON API，
   前端用 vis-network 交互可视化；
-- **React + TypeScript + Vite 看板**：单张/批量上传、处理进度、字段+置信度
-  表格、按级别着色的告警面板、图谱视图、CSV/JSON 导出；
+- **React + TypeScript + Vite 看板（浅色主题）**：单张/批量上传、处理进度、
+  字段+置信度表格、按级别着色的告警面板、图谱视图、CSV/JSON 导出、失败
+  文件单独重试；界面明确区分"真实上传"与"合成演示数据"；
 - **评测基准**：30 张 reportlab 生成的合成中文发票 + 机器可读 ground
   truth，评测脚本输出字段级准确率与平均置信度（见 `docs/benchmark.md`）；
 - **数据合规**：原始样例含真实个人信息与企业税号，一律不入库；仓库仅
   包含合成样例与标注，附密钥扫描脚本（`scripts/scan_secrets.py`）。
 
 后端 `uvicorn app.main:app` 一键启动（自动托管前端构建产物），离线演示
-与全部 90+ 测试均使用 mock 抽取器，不消耗 API 额度。
+与全部 120+ 测试均使用 mock 抽取器，不消耗 API 额度。

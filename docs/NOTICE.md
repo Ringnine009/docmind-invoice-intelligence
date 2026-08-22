@@ -18,6 +18,7 @@ repository (they contain real PII and a hard-coded API key).
 | [PyMuPDF](https://pymupdf.readthedocs.io/) | PDF → image rendering | AGPL-3.0 (usage in a standalone service; see note below) |
 | [reportlab](https://www.reportlab.com/) | Synthetic Chinese invoice PDF generation | BSD-style (reportlab license) |
 | [qrcode](https://github.com/lincolnloop/python-qrcode) | QR payloads on synthetic invoices | BSD-3-Clause |
+| [OpenCV](https://opencv.org/) (opencv-python) | QR-code decoding on invoice page renders | Apache-2.0 |
 | [vis-network](https://github.com/visjs/vis-network) | Frontend knowledge-graph visualization | Apache-2.0 / MIT (visjs) |
 | [React](https://react.dev/) + [Vite](https://vitejs.dev/) + TypeScript | Frontend dashboard | MIT |
 
