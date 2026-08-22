@@ -77,6 +77,9 @@ def main() -> int:
             pred_docs.append(InvoiceDocument())
 
     report = field_accuracy_report(gt_docs, pred_docs)
+    # tolerance lives in report["_meta"]; surface it at the result level so
+    # the markdown writer shows the actual value used, not a hard-coded default.
+    tolerance = report.get("_meta", {}).get("tolerance", 0.02)
     elapsed = time.time() - t0
 
     print("\n=== field-level accuracy ===")
@@ -98,6 +101,7 @@ def main() -> int:
         "n_failures": len(failures),
         "failures": failures,
         "elapsed_seconds": round(elapsed, 2),
+        "tolerance": tolerance,
         "report": {k: v for k, v in report.items() if not k.startswith("_")},
     }
     out_path = REPO_ROOT / args.out
@@ -117,7 +121,7 @@ def write_markdown(result: dict, label: str) -> None:
         f"- **Extractor**: {label}",
         f"- **Samples**: {result['n_invoices']} synthetic invoices "
         f"(failures: {result['n_failures']})",
-        f"- **Tolerance**: ¥{report['overall'].get('tolerance', 0.02)} for numeric fields",
+        f"- **Tolerance**: ¥{result.get('tolerance', 0.02)} for numeric fields",
         f"- **Runtime**: {result['elapsed_seconds']}s",
         "",
         "## Field-level results",

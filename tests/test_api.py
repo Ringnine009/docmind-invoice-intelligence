@@ -89,6 +89,38 @@ class TestUploadAndBatch:
         r = client.post("/api/invoices/upload", files=files)
         assert r.status_code == 400
 
+    def test_upload_rejects_path_traversal_filename(self, client):
+        # "../evil.pdf" must never write outside the upload directory.
+        files = [("files", ("../evil.pdf", make_pdf_bytes(), "application/pdf"))]
+        r = client.post("/api/invoices/upload", files=files)
+        assert r.status_code == 400
+        outside = client.app.state.settings.data_path / "evil.pdf"
+        assert not outside.exists()
+        # and the parent directory is untouched too
+        assert not (client.app.state.settings.data_path.parent / "evil.pdf").exists()
+
+    def test_upload_absolute_filename_sanitized_to_basename(self, client):
+        # The multipart parser strips directory components before the app sees
+        # the name ("C:\tmp\evil.pdf" → "evil.pdf"); whatever the client
+        # sends, the stored file must end up as a bare name inside upload_dir.
+        files = [("files", ("C:\\tmp\\evil.pdf", make_pdf_bytes(), "application/pdf"))]
+        r = client.post("/api/invoices/upload", files=files)
+        assert r.status_code == 200
+        batch = client.get(f"/api/batches/{r.json()['batch_id']}").json()
+        stored_name = batch["files"][0]
+        assert stored_name == Path(stored_name).name  # bare name, no separators
+        upload_dir = client.app.state.settings.data_path / "uploads"
+        stored = upload_dir / stored_name
+        assert stored.exists()
+        assert stored.resolve().is_relative_to(upload_dir.resolve())
+        # never at the data/ root
+        assert not (client.app.state.settings.data_path / "evil.pdf").exists()
+
+    def test_upload_rejects_nested_path_filename(self, client):
+        files = [("files", ("a/b/evil.pdf", make_pdf_bytes(), "application/pdf"))]
+        r = client.post("/api/invoices/upload", files=files)
+        assert r.status_code == 400
+
     def test_batch_status_eventually_done(self, client):
         files = [("files", ("inv.pdf", make_pdf_bytes(), "application/pdf"))]
         r = client.post("/api/invoices/upload", files=files)

@@ -56,6 +56,35 @@ class TestGraphBuilder:
         b2 = build([make_invoice(number="11111111111111111111")])
         assert {n["id"] for n in b1["nodes"]} == {n["id"] for n in b2["nodes"]}
 
+    def test_company_role_aggregated_when_both_sides(self):
+        # 甲公司 is buyer in one invoice and seller in another: its node role
+        # must reflect both, not the last write order.
+        batch = [
+            make_invoice(number="11111111111111111111", buyer_name="甲公司", seller_name="乙公司"),
+            make_invoice(number="22222222222222222222", buyer_name="乙公司", seller_name="甲公司"),
+        ]
+        graph = build(batch)
+        companies = {
+            n["properties"]["name"]: n["properties"]
+            for n in graph["nodes"]
+            if n["type"] == "company"
+        }
+        for name in ("甲公司", "乙公司"):
+            props = companies[name]
+            assert props["all_roles"] == ["buyer", "seller"]
+            assert props["role"] == "buyer+seller"
+
+    def test_single_role_company_keeps_role(self):
+        batch = [make_invoice(number="11111111111111111111", buyer_name="甲公司", seller_name="乙公司")]
+        graph = build(batch)
+        companies = {
+            n["properties"]["name"]: n["properties"]
+            for n in graph["nodes"]
+            if n["type"] == "company"
+        }
+        assert companies["甲公司"]["role"] == "buyer"
+        assert companies["乙公司"]["role"] == "seller"
+
     def test_statistics_totals(self):
         batch = [
             make_invoice(number="11111111111111111111", items=[make_item(name="A"), make_item(name="B")]),

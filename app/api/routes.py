@@ -6,7 +6,7 @@ import asyncio
 import csv
 import io
 import time
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Optional
 
 from fastapi import APIRouter, Body, File, HTTPException, Request, UploadFile
@@ -92,8 +92,22 @@ async def upload_invoices(request: Request, files: list[UploadFile] = File(...))
 
     names: list[str] = []
     for pdf in pdfs:
-        name = pdf.filename or f"invoice_{len(names)}.pdf"
+        raw = pdf.filename or ""
+        # Security: only a bare file name is acceptable. Reject absolute
+        # paths, ".." traversal and any path with directory components —
+        # the client-supplied name must never escape the upload directory.
+        name = PurePath(raw.replace("\\", "/")).name
+        if (
+            not raw.strip()
+            or not name
+            or name in {".", ".."}
+            or name != raw.replace("\\", "/").strip()
+        ):
+            raise HTTPException(status_code=400, detail=f"Unsafe filename: {raw!r}")
         target = upload_dir / name
+        # Defense in depth: resolved target must stay inside the upload dir.
+        if not target.resolve().is_relative_to(upload_dir.resolve()):
+            raise HTTPException(status_code=400, detail=f"Unsafe filename: {raw!r}")
         stem = Path(name).stem
         suffix_idx = 1
         while target.exists():
@@ -202,7 +216,7 @@ async def get_graph(batch_id: str, request: Request):
 
 
 @router.get("/api/batches/{batch_id}/export")
-async def export_batch(batch_id: str, format: str = "json", request: Request = None):
+async def export_batch(batch_id: str, request: Request, format: str = "json"):
     batch = _get_batch_or_404(request, batch_id)
     if format not in {"json", "csv"}:
         raise HTTPException(status_code=400, detail="format must be 'json' or 'csv'")

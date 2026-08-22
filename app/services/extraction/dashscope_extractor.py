@@ -1,5 +1,7 @@
 """DashScope (Alibaba Cloud Bailian) vision extractor via the OpenAI-compatible
-endpoint. Uses ``qwen3.5-ocr`` by default with ``qwen-vl-plus`` as fallback."""
+endpoint. Uses ``qwen-vl-plus`` by default with ``qwen3.5-ocr`` as fallback
+(qwen3.5-ocr is an OCR-layout model and produced poor structured JSON in our
+benchmarks; see docs/benchmark.md)."""
 
 from __future__ import annotations
 

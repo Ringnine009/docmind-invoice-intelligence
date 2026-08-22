@@ -10,6 +10,15 @@ import networkx as nx
 from app.models.invoice import InvoiceDocument
 
 
+def _join_roles(roles: list[str]) -> str:
+    """Compact the role list: 'buyer', 'seller', or 'buyer+seller'."""
+    if not roles:
+        return ""
+    if len(roles) == 1:
+        return roles[0]
+    return "+".join(sorted(roles))
+
+
 class GraphBuilder:
     """Builds a directed multi-graph of companies, invoices and products.
 
@@ -140,12 +149,29 @@ class GraphBuilder:
         if not name:
             return None
         company_id = self._node_id("company", name)
-        self.graph.add_node(
-            company_id,
-            label=name,
-            type="company",
-            properties={"name": name, "role": role, "tax_id": tax_id},
-        )
+        if self.graph.has_node(company_id):
+            # Merge instead of overwrite: a company can be both buyer and
+            # seller (e.g. self-dealing invoices) — the last write must not
+            # clobber the earlier role.
+            props = self.graph.nodes[company_id]["properties"]
+            roles = sorted(set(props.get("roles") or [props.get("role")]) | {role})
+            props["roles"] = roles
+            props["role"] = _join_roles(roles)
+            if tax_id and tax_id not in (props.get("tax_ids") or []):
+                props.setdefault("tax_ids", []).append(tax_id)
+        else:
+            self.graph.add_node(
+                company_id,
+                label=name,
+                type="company",
+                properties={
+                    "name": name,
+                    "role": role,
+                    "roles": [role],
+                    "tax_id": tax_id,
+                    "tax_ids": [tax_id] if tax_id else [],
+                },
+            )
         stats = self._company_stats[name]
         stats["roles"].add(role)
         if tax_id:
@@ -156,11 +182,15 @@ class GraphBuilder:
         for name, stats in self._company_stats.items():
             company_id = self._node_id("company", name)
             if self.graph.has_node(company_id):
+                all_roles = sorted(stats["roles"])
                 self.graph.nodes[company_id]["properties"].update(
                     {
                         "invoice_count": stats["invoice_count"],
                         "total_amount": stats["total_amount"],
-                        "all_roles": sorted(stats["roles"]),
+                        "roles": all_roles,
+                        # authoritative: aggregated, not last-write-wins
+                        "role": _join_roles(all_roles),
+                        "all_roles": all_roles,
                         "all_tax_ids": sorted(stats["tax_ids"]),
                     }
                 )

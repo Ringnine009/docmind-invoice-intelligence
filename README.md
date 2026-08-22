@@ -32,7 +32,7 @@ polished UI.
 | Custom graph with `hash()` node ids | Deterministic **networkx** knowledge graph + JSON API |
 | `templates/index.html` (jinja-ish page) | **React + TypeScript + Vite** dashboard with progress, audit, **analysis** & graph views |
 | Real (PII-bearing) sample invoices | Fully **synthetic** sample set + objective benchmark |
-| Manual "does it work?" | `pytest` suite (90+ tests), field-level accuracy benchmark |
+| Manual "does it work?" | `pytest` suite (120+ tests), field-level accuracy benchmark |
 
 ## Architecture
 
@@ -176,7 +176,7 @@ so benchmark runs are reproducible.
 ## Tests
 
 ```bash
-pytest            # 90+ tests, fully offline (LLM calls are mocked)
+pytest            # 120+ tests, fully offline (LLM calls are mocked)
 ```
 
 Coverage: schema contract, every audit rule, graph construction, JSON
@@ -192,7 +192,7 @@ app/                  FastAPI application (layered)
   models/             Pydantic schemas: InvoiceDocument (+confidence), AuditFinding
   services/
     extraction/       pdf→png, JSON repair, DashScope extractor, mock extractor
-    audit/            rule registry + 7 built-in rules + engine
+    audit/            rule registry + 8 built-in rules + engine
     graph/            networkx knowledge-graph builder
     eval/             field-level accuracy metrics
     batch/            thread-safe batch store (JSON persistence)
