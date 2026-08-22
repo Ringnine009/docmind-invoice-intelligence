@@ -28,9 +28,9 @@ polished UI.
 |---|---|
 | Hard-coded API key in `config.py` | All secrets via environment / `.env` (pydantic-settings) |
 | Gemini call returning loosely-typed JSON | Typed Pydantic schema + **per-field confidence** |
-| Save rows to Excel, that's it | **Audit engine** (7 extensible rules) over each batch |
+| Save rows to Excel, that's it | **Audit engine** (8 extensible rules) over each batch |
 | Custom graph with `hash()` node ids | Deterministic **networkx** knowledge graph + JSON API |
-| `templates/index.html` (jinja-ish page) | **React + TypeScript + Vite** dashboard with progress, audit & graph views |
+| `templates/index.html` (jinja-ish page) | **React + TypeScript + Vite** dashboard with progress, audit, **analysis** & graph views |
 | Real (PII-bearing) sample invoices | Fully **synthetic** sample set + objective benchmark |
 | Manual "does it work?" | `pytest` suite (90+ tests), field-level accuracy benchmark |
 
@@ -41,6 +41,7 @@ flowchart LR
     subgraph Frontend [React + TypeScript + Vite]
         UI[Upload / progress / results]
         AU[Audit panel]
+        AN[Analysis view — trend chart + filters]
         GV[Graph view (vis-network)]
     end
     subgraph Backend [FastAPI]
@@ -95,14 +96,18 @@ transaction edges).
 
 4. **Knowledge graph** — networkx-based, deterministic node ids, aggregated
    seller→buyer "transaction" edges; JSON API + interactive vis-network view.
-5. **Benchmark** — 30 synthetic invoices with a machine-readable ground truth
+5. **Analysis view** — a dependency-free SVG trend chart of invoice amounts
+   grouped by issue date (auto-switches to monthly buckets when there are
+   more than 30 distinct dates), with date-range and buyer/seller filters and
+   a detail table — parity with the coursework original's "数据分析" tab.
+6. **Benchmark** — 30 synthetic invoices with a machine-readable ground truth
    (`benchmark/ground_truth.json`); `scripts/run_benchmark.py` reports
    field-level accuracy + mean confidence (see [docs/benchmark.md](docs/benchmark.md)).
-6. **Privacy-safe samples** — original coursework invoices contained real PII
+7. **Privacy-safe samples** — original coursework invoices contained real PII
    and a leaked API key; the repository ships only **synthetic** invoices
    (see [docs/data-compliance.md](docs/data-compliance.md)) and a secret
    scanner ([scripts/scan_secrets.py](scripts/scan_secrets.py)).
-7. **Honest demo data** — the UI labels every batch as `REAL UPLOAD` or
+8. **Honest demo data** — the UI labels every batch as `REAL UPLOAD` or
    `DEMO · synthetic data`; failed files can be retried individually or as a
    group (`POST /api/batches/{id}/retry`).
 
