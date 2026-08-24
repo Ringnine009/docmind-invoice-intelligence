@@ -45,20 +45,20 @@ polished UI.
 ```mermaid
 flowchart LR
     subgraph Frontend [React + TypeScript + Vite]
-        UI[Upload / progress / results]
-        AU[Audit panel]
-        AN[Analysis view — trend chart + filters]
-        GV[Graph view (vis-network)]
+        UI["Upload / progress / results"]
+        AU["Audit panel"]
+        AN["Analysis view — trend chart + filters"]
+        GV["Graph view (vis-network)"]
     end
     subgraph Backend [FastAPI]
-        API[API routes]
-        BS[Batch store]
-        EX[Extraction service]
-        AE[Audit engine]
-        KG[Graph builder]
+        API["API routes"]
+        BS["Batch store"]
+        EX["Extraction service"]
+        AE["Audit engine"]
+        KG["Graph builder"]
     end
     subgraph External
-        DS[DashScope Qwen-VL<br/>OpenAI-compatible endpoint]
+        DS["DashScope Qwen-VL<br/>OpenAI-compatible endpoint"]
     end
     UI -->|upload PDFs| API
     API --> BS
