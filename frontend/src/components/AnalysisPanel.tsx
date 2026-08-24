@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useI18n } from "../i18n";
 import type { AuditFinding, BatchResult } from "../types";
 import { AuditCharts } from "./AuditCharts";
 
@@ -103,9 +104,10 @@ const GRID = "#e3e5ea";
 const TEXT = "#6d737c";
 
 function Chart({ series }: { series: SeriesPoint[] }) {
+  const { t } = useI18n();
   if (series.length === 0) {
     return (
-      <div className="analysis-empty">No invoices match the filters.</div>
+      <div className="analysis-empty">{t("analysis.noMatch")}</div>
     );
   }
 
@@ -205,6 +207,7 @@ function Chart({ series }: { series: SeriesPoint[] }) {
 // ---- component -------------------------------------------------------------
 
 export function AnalysisPanel({ results, findings }: Props) {
+  const { t, tf } = useI18n();
   const rows = useMemo(() => collectRows(results), [results]);
   const buyers = useMemo(() => uniqueSorted(rows.map((r) => r.buyer)), [rows]);
   const sellers = useMemo(() => uniqueSorted(rows.map((r) => r.seller)), [rows]);
@@ -239,7 +242,7 @@ export function AnalysisPanel({ results, findings }: Props) {
     <div className="analysis">
       <div className="analysis-filters">
         <label className="analysis-filter">
-          <span>Date from</span>
+          <span>{t("analysis.dateFrom")}</span>
           <input
             type="date"
             value={dateFrom}
@@ -247,7 +250,7 @@ export function AnalysisPanel({ results, findings }: Props) {
           />
         </label>
         <label className="analysis-filter">
-          <span>Date to</span>
+          <span>{t("analysis.dateTo")}</span>
           <input
             type="date"
             value={dateTo}
@@ -255,9 +258,9 @@ export function AnalysisPanel({ results, findings }: Props) {
           />
         </label>
         <label className="analysis-filter">
-          <span>Buyer</span>
+          <span>{t("analysis.buyer")}</span>
           <select value={buyer} onChange={(e) => setBuyer(e.target.value)}>
-            <option value="">All buyers</option>
+            <option value="">{t("analysis.allBuyers")}</option>
             {buyers.map((b) => (
               <option key={b} value={b}>
                 {b}
@@ -266,9 +269,9 @@ export function AnalysisPanel({ results, findings }: Props) {
           </select>
         </label>
         <label className="analysis-filter">
-          <span>Seller</span>
+          <span>{t("analysis.seller")}</span>
           <select value={seller} onChange={(e) => setSeller(e.target.value)}>
-            <option value="">All sellers</option>
+            <option value="">{t("analysis.allSellers")}</option>
             {sellers.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -281,13 +284,12 @@ export function AnalysisPanel({ results, findings }: Props) {
           onClick={clearFilters}
           disabled={!hasFilters}
         >
-          Clear filters
+          {t("analysis.clearFilters")}
         </button>
       </div>
 
       <p className="analysis-stats">
-        <strong>{filtered.length}</strong> records · total{" "}
-        <strong className="mono">{fmtMoney(total)}</strong>
+        {tf("analysis.stats", { n: filtered.length, amount: fmtMoney(total) })}
       </p>
 
       <div className="analysis-chart">
@@ -299,18 +301,18 @@ export function AnalysisPanel({ results, findings }: Props) {
       <table className="results analysis-table">
         <thead>
           <tr>
-            <th>Invoice №</th>
-            <th>Issue date</th>
-            <th>Seller</th>
-            <th>Buyer</th>
-            <th className="num">Total</th>
+            <th>{t("analysis.thInvoice")}</th>
+            <th>{t("analysis.thDate")}</th>
+            <th>{t("analysis.thSeller")}</th>
+            <th>{t("analysis.thBuyer")}</th>
+            <th className="num">{t("analysis.thTotal")}</th>
           </tr>
         </thead>
         <tbody>
           {filtered.length === 0 ? (
             <tr>
               <td colSpan={5} className="muted">
-                No invoices match the filters.
+                {t("analysis.noMatch")}
               </td>
             </tr>
           ) : (

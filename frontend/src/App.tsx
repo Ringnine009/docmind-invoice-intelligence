@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getBatch, loadDemo, retryFailed, uploadInvoices } from "./api";
+import { useI18n } from "./i18n";
 import type { Batch, GraphNode } from "./types";
 import { AnalysisPanel } from "./components/AnalysisPanel";
 import { AuditPanel } from "./components/AuditPanel";
@@ -13,6 +14,7 @@ type Tab = "results" | "audit" | "analysis" | "graph";
 const TAB_ORDER: Tab[] = ["results", "audit", "analysis", "graph"];
 
 export default function App() {
+  const { lang, setLang, t, tf } = useI18n();
   const [batchId, setBatchId] = useState<string | null>(null);
   const [batch, setBatch] = useState<Batch | null>(null);
   const [tab, setTab] = useState<Tab>("results");
@@ -127,22 +129,36 @@ export default function App() {
           <span className="brand-mark">◆</span>
           <div>
             <h1>DocMind</h1>
-            <p>Multimodal invoice intelligence &amp; audit</p>
+            <p>{t("brand.subtitle")}</p>
           </div>
         </div>
         <div className="topbar-actions">
+          <div className="lang-switch" role="group" aria-label="language">
+            <button
+              className={lang === "en" ? "active" : ""}
+              onClick={() => setLang("en")}
+            >
+              {t("lang.en")}
+            </button>
+            <button
+              className={lang === "zh" ? "active" : ""}
+              onClick={() => setLang("zh")}
+            >
+              {t("lang.zh")}
+            </button>
+          </div>
           {batch && (
             <span className={`chip source-${batch.source}`} title={batch.source}>
-              {batch.source === "demo" ? "DEMO · synthetic data" : "REAL UPLOAD"}
+              {batch.source === "demo" ? t("source.demo") : t("source.upload")}
             </span>
           )}
           {batchId && (
             <span className="chip mono" title={batchId}>
-              batch {batchId.slice(0, 8)}
+              {t("batch.label")} {batchId.slice(0, 8)}
             </span>
           )}
           <button className="btn ghost" onClick={handleDemo} disabled={busy}>
-            {busy ? "Working…" : "Load demo (30)"}
+            {busy ? t("upload.processing") : t("demo.load")}
           </button>
         </div>
       </header>
@@ -157,20 +173,26 @@ export default function App() {
 
       {batch && (
         <section className="statusbar">
-          <span className={`chip status ${batch.status}`}>{batch.status}</span>
+          <span className={`chip status ${batch.status}`}>
+            {t(`status.${batch.status}`)}
+          </span>
           {running ? (
             <div className="progress">
               <div className="progress-track">
                 <div className="progress-fill" style={{ width: `${progress}%` }} />
               </div>
               <span className="mono">
-                {batch.done}/{batch.total} · {progress}%
+                {tf("status.progress", { done: batch.done, total: batch.total, pct: progress })}
               </span>
             </div>
           ) : (
             <span className="mono">
-              {succeeded}/{batch.total} extracted{failed > 0 ? ` · ${failed} failed` : ""} ·{" "}
-              {findingsTotal} findings
+              {tf("status.summary", {
+                done: succeeded,
+                total: batch.total,
+                findings: findingsTotal,
+              })}
+              {failed > 0 ? ` · ${failed} ${lang === "zh" ? "失败" : "failed"}` : ""}
             </span>
           )}
         </section>
@@ -179,23 +201,21 @@ export default function App() {
       {batch && (
         <>
           <nav className="tabs">
-            {TAB_ORDER.map((t) => {
-              const disabled = t === "analysis" && batch.status !== "done";
+            {TAB_ORDER.map((tKey) => {
+              const disabled = tKey === "analysis" && batch.status !== "done";
               const label =
-                t === "results"
-                  ? `Results (${batch.total})`
-                  : t === "audit"
-                    ? `Audit (${findingsTotal})`
-                    : t === "analysis"
-                      ? "Analysis"
-                      : "Graph";
+                tKey === "results"
+                  ? `${t("tab.results")} (${batch.total})`
+                  : tKey === "audit"
+                    ? `${t("tab.audit")} (${findingsTotal})`
+                    : t(`tab.${tKey}`);
               return (
                 <button
-                  key={t}
-                  className={`tab ${tab === t ? "active" : ""}`}
+                  key={tKey}
+                  className={`tab ${tab === tKey ? "active" : ""}`}
                   disabled={disabled}
-                  title={disabled ? "Analysis is available after the batch finishes" : undefined}
-                  onClick={() => setTab(t)}
+                  title={disabled ? t("analysis.gated") : undefined}
+                  onClick={() => setTab(tKey)}
                 >
                   {label}
                 </button>
@@ -214,14 +234,14 @@ export default function App() {
                       handleRetry(indices);
                     }}
                   >
-                    Retry {failed} failed
+                    {tf("retry.failed", { n: failed })}
                   </button>
                 )}
                 <a className="btn small" href={`/api/batches/${batch.id}/export?format=csv`}>
-                  Export CSV
+                  {t("export.csv")}
                 </a>
                 <a className="btn small ghost" href={`/api/batches/${batch.id}/export?format=json`}>
-                  Export JSON
+                  {t("export.json")}
                 </a>
               </div>
             )}
@@ -242,7 +262,7 @@ export default function App() {
               (batch.status === "done" ? (
                 <AnalysisPanel results={batch.results} findings={batch.findings} />
               ) : (
-                <p className="muted">Analysis is available once the batch finishes.</p>
+                <p className="muted">{t("analysis.gated")}</p>
               ))}
             {tab === "graph" && (
               <GraphView
@@ -259,16 +279,13 @@ export default function App() {
 
       {!batch && (
         <main className="content empty">
-          <p>Upload invoice PDFs or load the synthetic demo batch to get started.</p>
-          <p className="muted">
-            Extraction uses a Qwen vision model (DashScope); the audit engine then checks
-            duplicates, arithmetic, tax rates, QR codes and party information.
-          </p>
+          <p>{t("empty.title")}</p>
+          <p className="muted">{t("empty.hint")}</p>
         </main>
       )}
 
       <footer className="footer">
-        <span>DocMind · synthetic sample data only · no real PII</span>
+        <span>{t("footer")}</span>
       </footer>
 
       <InvoiceDrawer

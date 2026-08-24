@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useI18n } from "../i18n";
 
 interface Props {
   onUpload: (files: File[]) => void;
@@ -6,6 +7,7 @@ interface Props {
 }
 
 export function UploadZone({ onUpload, busy }: Props) {
+  const { t, tf } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [picked, setPicked] = useState<File[]>([]);
@@ -46,12 +48,15 @@ export function UploadZone({ onUpload, busy }: Props) {
       <div className="upload-icon">⇪</div>
       <p className="upload-title">
         {picked.length > 0 && !busy
-          ? `${picked.length} PDF${picked.length > 1 ? "s" : ""} selected — processing…`
+          ? tf("upload.selected", {
+              n: picked.length,
+              s: picked.length > 1 ? "s" : "",
+            })
           : busy
-            ? "Processing…"
-            : "Drop invoice PDFs here or click to browse"}
+            ? t("upload.processing")
+            : t("upload.title")}
       </p>
-      <p className="muted small">single or batch · rendered at 200 dpi · Qwen vision extraction</p>
+      <p className="muted small">{t("upload.hint")}</p>
     </section>
   );
 }

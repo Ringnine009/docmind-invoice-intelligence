@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import type { AuditFinding, BatchResult, GraphData, GraphNode } from "../types";
 import { ConfidenceBar } from "./ConfidenceBar";
 
@@ -61,9 +62,10 @@ function GraphFragment({
   graph: GraphData | null;
   onFocusGraphNode: (nodeId: string) => void;
 }) {
+  const { t } = useI18n();
   const neighbors = neighborList(graph, nodeId);
   if (neighbors.length === 0) {
-    return <p className="muted small">No graph connections.</p>;
+    return <p className="muted small">{t("drawer.noConnections")}</p>;
   }
   return (
     <ul className="neighbor-list">
@@ -81,13 +83,14 @@ function GraphFragment({
 }
 
 function DrawerHeader({ title, subtitle, onClose }: { title: string; subtitle?: string; onClose: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="drawer-header">
       <div className="drawer-title">
         <strong>{title}</strong>
         {subtitle && <span className="muted small">{subtitle}</span>}
       </div>
-      <button className="drawer-close" onClick={onClose} aria-label="close drawer">
+      <button className="drawer-close" onClick={onClose} aria-label={t("drawer.close")}>
         ✕
       </button>
     </div>
@@ -95,15 +98,18 @@ function DrawerHeader({ title, subtitle, onClose }: { title: string; subtitle?: 
 }
 
 function FindingsSection({ findings }: { findings: AuditFinding[] }) {
+  const { t } = useI18n();
   if (findings.length === 0) {
-    return <p className="muted small">No audit findings for this invoice.</p>;
+    return <p className="muted small">{t("drawer.noFindings")}</p>;
   }
   return (
     <ul className="drawer-findings">
       {findings.map((f, i) => (
         <li key={i} className={`finding ${f.severity.toLowerCase()}`}>
           <div className="finding-head">
-            <span className={`badge ${f.severity.toLowerCase()}`}>{f.severity}</span>
+            <span className={`badge ${f.severity.toLowerCase()}`}>
+              {t(`severity.${f.severity.toLowerCase()}`)}
+            </span>
             <span className="finding-rule mono">{f.rule_id}</span>
           </div>
           <p className="finding-message">{f.message}</p>
@@ -128,12 +134,13 @@ function InvoiceView({
   onClose: () => void;
   onFocusGraphNode: (nodeId: string) => void;
 }) {
+  const { t, tf } = useI18n();
   const doc = result.doc;
   if (!doc) {
     return (
       <div className="drawer-body">
-        <DrawerHeader title={result.filename} subtitle="extraction failed" onClose={onClose} />
-        <p className="error-text">extraction failed: {result.error}</p>
+        <DrawerHeader title={result.filename} subtitle={t("drawer.failed")} onClose={onClose} />
+        <p className="error-text">{tf("results.failed", { error: result.error ?? "" })}</p>
       </div>
     );
   }
@@ -165,7 +172,7 @@ function InvoiceView({
       <DrawerHeader title={result.filename} subtitle={doc.invoice_number ?? undefined} onClose={onClose} />
 
       <section className="drawer-section">
-        <h4>Fields</h4>
+        <h4>{t("drawer.fields")}</h4>
         <table className="kv">
           <tbody>
             {keyFields.map(([k, v]) => (
@@ -188,9 +195,9 @@ function InvoiceView({
       </section>
 
       <section className="drawer-section">
-        <h4>Model confidence</h4>
+        <h4>{t("drawer.confidence")}</h4>
         {Object.entries(doc.confidence).length === 0 ? (
-          <p className="muted small">no confidence reported</p>
+          <p className="muted small">{t("drawer.noConfidence")}</p>
         ) : (
           Object.entries(doc.confidence)
             .slice(0, 12)
@@ -199,7 +206,7 @@ function InvoiceView({
       </section>
 
       <section className="drawer-section">
-        <h4>Line items</h4>
+        <h4>{t("drawer.items")}</h4>
         {doc.items.length === 0 ? (
           <p className="muted small">—</p>
         ) : (
@@ -218,12 +225,12 @@ function InvoiceView({
       </section>
 
       <section className="drawer-section">
-        <h4>Audit evidence ({docFindings.length})</h4>
+        <h4>{tf("drawer.evidence", { n: docFindings.length })}</h4>
         <FindingsSection findings={docFindings} />
       </section>
 
       <section className="drawer-section">
-        <h4>Graph connections</h4>
+        <h4>{t("drawer.connections")}</h4>
         <GraphFragment nodeId={invoiceNodeId} graph={graph} onFocusGraphNode={onFocusGraphNode} />
       </section>
     </div>
@@ -241,12 +248,13 @@ function NodeView({
   onClose: () => void;
   onFocusGraphNode: (nodeId: string) => void;
 }) {
+  const { t } = useI18n();
   const props: [string, unknown][] = Object.entries(node.properties);
   return (
     <div className="drawer-body">
-      <DrawerHeader title={node.label} subtitle={node.type} onClose={onClose} />
+      <DrawerHeader title={node.label} subtitle={t(`graph.type.${node.type}`)} onClose={onClose} />
       <section className="drawer-section">
-        <h4>Node properties</h4>
+        <h4>{t("drawer.nodeProps")}</h4>
         <table className="kv">
           <tbody>
             {props.map(([k, v]) => (
@@ -259,7 +267,7 @@ function NodeView({
         </table>
       </section>
       <section className="drawer-section">
-        <h4>Graph connections</h4>
+        <h4>{t("drawer.connections")}</h4>
         <GraphFragment nodeId={node.id} graph={graph} onFocusGraphNode={onFocusGraphNode} />
       </section>
     </div>

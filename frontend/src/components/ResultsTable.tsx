@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import type { BatchResult } from "../types";
 
 interface Props {
@@ -7,22 +8,23 @@ interface Props {
 }
 
 export function ResultsTable({ results, onRetry, onRowClick }: Props) {
+  const { t } = useI18n();
   const rows = results.filter((r): r is BatchResult => r !== null);
 
   if (rows.length === 0) {
-    return <p className="muted">No results yet.</p>;
+    return <p className="muted">{t("results.noResults")}</p>;
   }
 
   return (
     <table className="results">
       <thead>
         <tr>
-          <th>File</th>
-          <th>Invoice №</th>
-          <th>Date</th>
-          <th>Seller</th>
-          <th>Buyer</th>
-          <th className="num">Amount</th>
+          <th>{t("results.file")}</th>
+          <th>{t("results.invoiceNo")}</th>
+          <th>{t("results.date")}</th>
+          <th>{t("results.seller")}</th>
+          <th>{t("results.buyer")}</th>
+          <th className="num">{t("results.amount")}</th>
         </tr>
       </thead>
       <tbody>
@@ -50,7 +52,7 @@ export function ResultsTable({ results, onRetry, onRowClick }: Props) {
                     onRetry([i]);
                   }}
                 >
-                  Retry
+                  {t("retry.single")}
                 </button>
               )}
             </td>

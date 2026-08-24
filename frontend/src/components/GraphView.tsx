@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getGraph } from "../api";
+import { useI18n } from "../i18n";
 import type { Batch, GraphData, GraphNode } from "../types";
 
 interface Props {
@@ -37,6 +38,7 @@ function fmtMoney(v: number): string {
 }
 
 export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }: Props) {
+  const { t, tf } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<import("vis-network").Network | null>(null);
   // public DataSet handles so node/edge styling can be updated without
@@ -261,7 +263,7 @@ export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }
   }, [focusRequest]);
 
   if (error) return <p className="error-text">{error}</p>;
-  if (!data) return <p className="muted">Building graph…</p>;
+  if (!data) return <p className="muted">{t("graph.building")}</p>;
 
   const totalAmount = visible.nodes
     .filter((n) => n.type === "invoice")
@@ -271,11 +273,11 @@ export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }
     ? visible.edges.filter((e) => e.source === focusId || e.target === focusId).length
     : 0;
 
-  function toggleType(t: string) {
+  function toggleType(ty: string) {
     setTypes((prev) => {
       const next = new Set(prev);
-      if (next.has(t)) next.delete(t);
-      else next.add(t);
+      if (next.has(ty)) next.delete(ty);
+      else next.add(ty);
       return next;
     });
   }
@@ -301,23 +303,23 @@ export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }
     <div className="graph-page">
       <div className="graph-filters">
         <div className="graph-filter-group">
-          <span className="graph-filter-label">Node types</span>
-          {(["invoice", "company", "product"] as const).map((t) => (
-            <label key={t} className="graph-check">
+          <span className="graph-filter-label">{t("graph.nodeTypes")}</span>
+          {(["invoice", "company", "product"] as const).map((ty) => (
+            <label key={ty} className="graph-check">
               <input
                 type="checkbox"
-                checked={types.has(t)}
-                onChange={() => toggleType(t)}
+                checked={types.has(ty)}
+                onChange={() => toggleType(ty)}
               />
-              <span className={`n-dot ${t}`} />
-              {t}
+              <span className={`n-dot ${ty}`} />
+              {t(`graph.type.${ty}`)}
             </label>
           ))}
         </div>
         <label className="graph-filter">
-          <span>Company</span>
+          <span>{t("graph.company")}</span>
           <select value={company} onChange={(e) => setCompany(e.target.value)}>
-            <option value="">All companies</option>
+            <option value="">{t("graph.allCompanies")}</option>
             {companies.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -326,7 +328,7 @@ export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }
           </select>
         </label>
         <label className="graph-filter">
-          <span>Min amount (¥)</span>
+          <span>{t("graph.minAmount")}</span>
           <input
             type="number"
             min={0}
@@ -337,21 +339,24 @@ export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }
           />
         </label>
         <button className="btn small ghost" onClick={resetFilters} disabled={!hasFilters}>
-          Reset
+          {t("graph.reset")}
         </button>
       </div>
 
       <div className="graph-stats">
         <span>
-          <strong>{visible.nodes.length}</strong> nodes · <strong>{visible.edges.length}</strong> edges · total{" "}
-          <strong className="mono">{fmtMoney(totalAmount)}</strong>
+          {tf("graph.stats", {
+            nodes: visible.nodes.length,
+            edges: visible.edges.length,
+            amount: fmtMoney(totalAmount),
+          })}
         </span>
         <span className="graph-legend">
-          <span className="legend-item"><span className="n-dot invoice" />invoice</span>
-          <span className="legend-item"><span className="n-dot company" />company</span>
-          <span className="legend-item"><span className="n-dot product" />product</span>
-          <span className="legend-item"><span className="e-line solid" />bought / sold</span>
-          <span className="legend-item"><span className="e-line dashed" />contains / transaction</span>
+          <span className="legend-item"><span className="n-dot invoice" />{t("graph.type.invoice")}</span>
+          <span className="legend-item"><span className="n-dot company" />{t("graph.type.company")}</span>
+          <span className="legend-item"><span className="n-dot product" />{t("graph.type.product")}</span>
+          <span className="legend-item"><span className="e-line solid" />{t("graph.legendEdges")}</span>
+          <span className="legend-item"><span className="e-line dashed" />{t("graph.legendEdgesDashed")}</span>
         </span>
       </div>
 
@@ -359,7 +364,7 @@ export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }
         <div className="graph-canvas-wrap">
           {visible.nodes.length === 0 ? (
             <div className="graph-canvas graph-canvas-empty">
-              <span className="muted">No nodes match the filters.</span>
+              <span className="muted">{t("graph.empty")}</span>
             </div>
           ) : (
             <div className="graph-canvas" ref={containerRef} />
@@ -367,17 +372,21 @@ export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }
           {focusNode && (
             <div className="graph-node-card">
               <div className="graph-node-card-title">{focusNode.label}</div>
-              <div className="muted small">type · {focusNode.type}</div>
-              <div className="mono">amount · {fmtMoney(nodeAmount(focusNode))}</div>
-              <div className="mono">connections · {focusDegree}</div>
+              <div className="muted small">
+                {tf("graph.cardType", { type: t(`graph.type.${focusNode.type}`) })}
+              </div>
+              <div className="mono">
+                {tf("graph.cardAmount", { amount: fmtMoney(nodeAmount(focusNode)) })}
+              </div>
+              <div className="mono">{tf("graph.cardConnections", { n: focusDegree })}</div>
               <button className="btn small ghost" onClick={() => setFocusId(null)}>
-                Clear focus
+                {t("graph.clearFocus")}
               </button>
             </div>
           )}
         </div>
         <aside className="graph-side">
-          <h4>Top companies by volume</h4>
+          <h4>{t("graph.topCompanies")}</h4>
           <ol className="top-list">
             {topCompanies.map((c) => (
               <li key={c.name}>
@@ -389,7 +398,7 @@ export function GraphView({ batchId, focusRequest, onFocusHandled, onNodeClick }
             ))}
           </ol>
           <p className="muted small" style={{ marginTop: 12 }}>
-            click a node to focus its neighbourhood; click empty canvas to reset
+            {t("graph.hint")}
           </p>
         </aside>
       </div>

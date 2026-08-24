@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n";
 import type { AuditFinding, Severity } from "../types";
 
 const SEVERITIES: Severity[] = ["CRITICAL", "ERROR", "WARNING", "INFO"];
@@ -14,6 +15,7 @@ interface Props {
 
 /** Horizontal bars: findings per audit rule. */
 function RuleBars({ rules }: { rules: [string, number][] }) {
+  const { t } = useI18n();
   const W = 720;
   const rowH = 26;
   const labelW = 170;
@@ -24,8 +26,8 @@ function RuleBars({ rules }: { rules: [string, number][] }) {
   const barW = W - labelW - rightW - 24;
   return (
     <div className="audit-chart">
-      <h4>Findings by rule</h4>
-      <svg viewBox={`0 0 ${W} ${H}`} className="analysis-svg" role="img" aria-label="findings by rule">
+      <h4>{t("audit.byRule")}</h4>
+      <svg viewBox={`0 0 ${W} ${H}`} className="analysis-svg" role="img" aria-label={t("audit.byRule")}>
         {rules.map(([rule, count], i) => {
           const y = topPad + i * rowH;
           const bw = Math.max((count / max) * barW, 2);
@@ -48,6 +50,7 @@ function RuleBars({ rules }: { rules: [string, number][] }) {
 
 /** Vertical bars: severity distribution. */
 function SeverityBars({ data }: { data: { sev: Severity; count: number }[] }) {
+  const { t } = useI18n();
   const W = 720;
   const H = 180;
   const labelW = 40;
@@ -59,8 +62,8 @@ function SeverityBars({ data }: { data: { sev: Severity; count: number }[] }) {
   const colW = innerW / data.length;
   return (
     <div className="audit-chart">
-      <h4>Findings by severity</h4>
-      <svg viewBox={`0 0 ${W} ${H}`} className="analysis-svg" role="img" aria-label="findings by severity">
+      <h4>{t("audit.bySeverity")}</h4>
+      <svg viewBox={`0 0 ${W} ${H}`} className="analysis-svg" role="img" aria-label={t("audit.bySeverity")}>
         {data.map((d, i) => {
           const h = (d.count / max) * innerH;
           const x = labelW + i * colW + colW * 0.25;
@@ -74,7 +77,7 @@ function SeverityBars({ data }: { data: { sev: Severity; count: number }[] }) {
               )}
               <rect x={x} y={y} width={colW * 0.5} height={Math.max(h, d.count > 0 ? 3 : 0)} rx={3} fill={SEV_COLORS[d.sev]} />
               <text x={x + colW * 0.25} y={H - bottomPad + 16} textAnchor="middle" fontSize={10} fill="#6d737c">
-                {d.sev}
+                {t(`severity.${d.sev.toLowerCase()}`)}
               </text>
             </g>
           );
@@ -85,10 +88,11 @@ function SeverityBars({ data }: { data: { sev: Severity; count: number }[] }) {
 }
 
 export function AuditCharts({ findings }: Props) {
+  const { t } = useI18n();
   if (findings.length === 0) {
     return (
       <div className="audit-charts">
-        <div className="analysis-empty">No audit findings to chart.</div>
+        <div className="analysis-empty">{t("audit.noChartData")}</div>
       </div>
     );
   }

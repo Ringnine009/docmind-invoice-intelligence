@@ -121,6 +121,34 @@ body {
   flex-wrap: wrap;
 }
 
+/* ---- language switch ---- */
+
+.lang-switch {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.lang-switch button {
+  background: var(--panel);
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+
+.lang-switch button + button {
+  border-left: 1px solid var(--border-strong);
+}
+
+.lang-switch button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 /* ---- buttons / chips ---- */
 
 .btn {
