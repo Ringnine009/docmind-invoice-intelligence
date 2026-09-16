@@ -1689,17 +1689,17 @@ Read these before quoting any number above.
 - **Not a production distribution.** Real batches carry skewed tax rates,
   red-ink and voided invoices, multi-page scans and phone photos. Nothing here
   measures those, so real-world precision should be expected to be worse.
-- **No working fallback model.** The configured fallback returned
-  `403 insufficient_quota` throughout these runs, so every primary-model
-  failure became a hard extraction failure rather than being absorbed. The
-  extraction-failure rate above therefore describes the primary model *plus* a
-  fallback that could not help; a deployment with a functioning second model —
-  or a repair loop around the decode — should extract more documents, which
-  raises recall without touching a single audit rule. Do not read the recall
-  figures as the ceiling of the rules. (The pipeline now reports such a model as
-  *unavailable* rather than as an attempt that read the document, and accounts
-  for the refused call in the cost table, so this limitation is visible in the
-  artifact instead of inferred from an error string.)
+- **No working fallback model — and this run never reached it.** The configured
+  fallback returned `403 insufficient_quota` for the whole baseline run, so every
+  primary-model failure there became a hard extraction failure rather than being
+  absorbed. The repair loop around the decode has since removed those failures,
+  which is why the current run reads every document with the primary model alone
+  (`fallback_reads = 0`) — but that also means the second model is an untested
+  safety net here, and a response that is unusable even after repair has nowhere
+  else to go. The pipeline reports such a model as *unavailable* rather than as
+  an attempt that read the document, and accounts for the refused call in the
+  cost table, so this limitation is visible in the artifact instead of inferred
+  from an error string.
 - **A repair can recover framing, not content.** The JSON repair closes a
   bracket the model forgot and drops the unterminated tail it was cut off in; it
   never supplies a value. A response that was truncated *before* it emitted the
