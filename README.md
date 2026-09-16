@@ -228,6 +228,19 @@ against the same labels. Results, cost and per-invoice failure instances are in
 [docs/e2e-eval.md](docs/e2e-eval.md); the raw per-round data is in
 `benchmark/results/e2e_eval.json`.
 
+That JSON is deliberately **not committed** (`benchmark/results/` is gitignored,
+the same call this repository already made for `audit_eval.json` — those
+artifacts are regenerated output, not source). The reader-facing page *is*
+tracked, and it can be rebuilt from the JSON with no API calls:
+
+```bash
+python scripts/run_e2e_eval.py --render-only
+```
+
+Reproducing the *measurement* itself needs the paid extractor, so it is
+reproducible-with-credentials rather than offline-reproducible. The offline
+harness check (`--extractor mock`) exercises the scoring path without cost.
+
 | Input to the audit engine | micro P | micro R | micro F1 |
 |---|---|---|---|
 | Labelled field values (the 1.000 above) | 1.000 | 1.000 | 1.000 |
