@@ -179,6 +179,56 @@ class TestPerClassMetrics:
         assert report["classes"]["duplicate_number"]["tp"] == 2
 
 
+class TestAttributionNumbersCanBeOverridden:
+    """A finding names the invoice number the *engine* saw.
+
+    On labelled input that is the ground-truth number, but when the fields come
+    from a vision model it is the extracted number. Resolving findings against
+    the ground-truth numbers then fails for exactly the invoices whose number
+    was misread — a harness artefact masquerading as a missed detection. The
+    caller can therefore supply the numbers the batch was actually built from.
+    """
+
+    FILES = {
+        "a.pdf": gt_entry("11111111111111111111", ["duplicate_number"]),
+        "b.pdf": gt_entry("22222222222222222222", ["duplicate_number"]),
+        "clean.pdf": gt_entry("33333333333333333333"),
+    }
+    NAMES = ["a.pdf", "b.pdf", "clean.pdf"]
+
+    def test_gt_numbers_are_used_by_default(self):
+        report = evaluate_audit(
+            self.FILES, [finding("dup_invoice_number", number="11111111111111111111")],
+            names=self.NAMES,
+        )
+        assert report["classes"]["duplicate_number"]["tp_invoices"] == ["a.pdf"]
+
+    def test_extracted_numbers_resolve_a_misread_duplicate(self):
+        # The model misread BOTH numbers as the same wrong value, so the rule
+        # fires — correctly — on a pair that exists only in the extraction.
+        report = evaluate_audit(
+            self.FILES,
+            [finding("dup_invoice_number", number="99999999999999999999")],
+            names=self.NAMES,
+            numbers={"a.pdf": "99999999999999999999", "b.pdf": "99999999999999999999",
+                     "clean.pdf": "33333333333333333333"},
+        )
+        dup = report["classes"]["duplicate_number"]
+        assert dup["tp_invoices"] == ["a.pdf", "b.pdf"]
+        assert dup["tp"] == 2 and dup["fn"] == 0
+        assert report["unattributed_findings"] == []
+
+    def test_without_the_override_that_finding_is_unattributed(self):
+        report = evaluate_audit(
+            self.FILES,
+            [finding("dup_invoice_number", number="99999999999999999999")],
+            names=self.NAMES,
+        )
+        assert report["classes"]["duplicate_number"]["fn"] == 2
+        assert len(report["unattributed_findings"]) == 1
+        assert report["unattributed_findings"][0]["rule_id"] == "dup_invoice_number"
+
+
 # --- shared rules and attribution -----------------------------------------
 
 
@@ -278,3 +328,29 @@ class TestRealGroundTruth:
         md = render_audit_markdown(report)
         assert "12" in md and "|" in md
         assert "duplicate_number" in md
+
+
+class TestLimitationsReportTheMeasuredEndToEndResult:
+    """This page used to defer end-to-end scoring to future work.
+
+    It must now either report the measured end-to-end result or say plainly
+    that it is unmeasured — silently dropping the caveat would let the 1.000
+    headline read as an end-to-end number.
+    """
+
+    @pytest.fixture(scope="class")
+    @classmethod
+    def markdown(cls):
+        return render_audit_markdown(evaluate_ground_truth_audit())
+
+    def test_points_at_the_end_to_end_page(self, markdown):
+        assert "e2e-eval.md" in markdown
+
+    def test_no_longer_promises_end_to_end_as_future_work(self, markdown):
+        assert "the end-to-end path is not measured here" not in markdown
+        assert "End-to-end numbers need a real extraction run" not in markdown
+
+    def test_names_the_extracted_input_result_as_measured(self, markdown):
+        lowered = markdown.lower()
+        assert "measured" in lowered
+        assert "micro recall" in lowered

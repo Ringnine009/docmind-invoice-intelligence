@@ -7,6 +7,10 @@ Verification baseline: `pytest` → **186 passed** (132 pre-existing tests all
 still green, +54 new). `npm run build` (tsc -b && vite build) → success.
 No `git push` was performed; all work is local.
 
+> A fifth change is documented in [Section E](#e-the-end-to-end-measurement-the-audit-page-deferred)
+> below: the end-to-end evaluation, which closes the limitation section A
+> admitted and reports a much lower — and more useful — number.
+
 ---
 
 ## A. The audit engine was never measured
@@ -232,6 +236,138 @@ about test isolation.
 
 ---
 
+## E. The end-to-end measurement the audit page deferred
+
+**Problem.** Section A shipped an honest limitation: the audit engine scored
+1.000, but it was scored over the *labelled* field values in
+`benchmark/ground_truth.json`, not over what the vision model actually returned
+for the PDFs. That is the first thing an interviewer asks about a document-AI
+project — *does the audit still work when the OCR is wrong?* — and the honest
+answer was "not measured". The gap also had a known shape on both sides: a
+mis-OCR'd amount can hide a real anomaly (the rule sees a consistent but wrong
+document) and can manufacture a false one.
+
+**Design.**
+
+- `app/services/eval/e2e.py` — pure and offline, mirroring the existing
+  `eval/metrics.py` / `eval/audit_metrics.py` layout:
+  - `UsageMeter`: thread-safe per-call token accounting with a hard budget
+    fuse. It is fed by the extractor, so it must never raise (the extractor's
+    `except Exception` would turn a budget abort into an ordinary extraction
+    failure); the runner calls `check_budget()` at a safe point instead.
+  - `summarize_rounds`: mean/min/max/range per metric, with range reported as
+    `None` — not `0.0` — when only one round exists, because one observation
+    cannot express spread.
+  - `classify_divergences`: every difference between the labelled-field run and
+    the end-to-end run, per invoice and anomaly class, with a `mechanism` label
+    (`masked_value_error`, `masked_partner_lost`, `manufactured_value_error`,
+    `masked_unexplained`, …), the driving field values that changed, and — for
+    batch-scoped rules — the state of the partner invoices.
+  - `render_e2e_markdown`, `redact_endpoint`.
+- `app/services/extraction/dashscope_extractor.py` — one additive
+  `usage_recorder` hook, called **before** JSON parsing so a response that is
+  billed and then discarded is still charged. A test asserts the request shape
+  (prompt text, `temperature=0.0`, `response_format`) is byte-for-byte
+  unchanged by the hook; the prompt itself was not touched.
+- `scripts/run_e2e_eval.py` — 30 invoices × 3 rounds, the project's own
+  extractor, `--budget-cny` fuse, `--render-only` to re-render the page from
+  the artifact at zero cost.
+
+Two defects in the *measurement itself* surfaced while running it, and both
+were fixed test-first:
+
+1. `evaluate_audit` resolved batch-level findings (`dup_invoice_number`) by the
+   **ground-truth** invoice numbers. On extracted input a misread number makes
+   a genuine finding unresolvable, so the very error under test was scored as a
+   missed detection. Added an optional `numbers=` override; the end-to-end run
+   passes the numbers the engine actually saw. (Verified: `unattributed` is 0
+   in all three rounds.)
+2. Field accuracy over the auditable subset is not comparable with the recorded
+   0.8249 baseline, which counts a failed extraction as an empty document.
+   The runner now records **both** conventions and the page prints them side by
+   side with the delta.
+
+**Results** (real API, same batch, `qwen-vl-plus`, three rounds).
+
+| Metric | Labelled fields | Real extraction (auditable subset) | Real extraction (failures = misses) |
+|---|---|---|---|
+| micro precision | 1.0000 | 0.6579 | 0.6579 |
+| micro recall | 1.0000 | 0.8065 | 0.6944 |
+| micro F1 | 1.0000 | 0.7247 | 0.6757 |
+
+Per-round micro F1 was 0.800 / 0.696 / 0.667 (subset) and 0.769 / 0.640 /
+0.609 (full batch) — the spread is real, not noise-free, and comes mostly from
+which invoices happened to fail extraction that round.
+
+- **Field accuracy.** 0.9421 mean over the auditable subset (0.9399–0.9444);
+  0.8272 mean with failed extractions counted as empty documents
+  (0.8135–0.8470) — **+0.23 pp against the recorded 0.8249 baseline**, i.e. the
+  earlier field number reproduces on this batch.
+- **Extraction failures.** 11 of 90 attempts (12.2 %): 3 / 4 / 4 per round.
+  *Every single one* had the same cause — `malformed JSON in model response:
+  Expecting ',' delimiter` from the primary model on both attempts, after which
+  the fallback was rejected by the endpoint with `403 insufficient_quota`. The
+  failure is per-invoice, not per-run: 6 distinct files failed at least once and
+  3 of them succeeded in another round.
+- **Masked instance (reproduced 3/3 rounds).** `invoice_020.pdf` is a labelled
+  `arithmetic_mismatch`: the labelled document says 630.18 + 75.91 but declares
+  656.09. The model returned the **self-consistent** total 706.09, so
+  `arithmetic_total` sees a coherent document and cannot fire. The same misread
+  simultaneously **manufactured** a `qr_mismatch` finding — the QR payload,
+  decoded from the pixels, still says ¥656.09 — which is the strongest argument
+  in the whole run for cross-source rules over same-source ones.
+- **Manufactured instance (2 of 3 rounds).** `invoice_011.pdf` is clean
+  (14060.18 + 1301.90 = 15362.08). The model read `tax_amount` as 1299.90
+  (round 3: 1291.90), so `arithmetic_total` raised an **ERROR** with a ¥2.00
+  (round 3: ¥10.00) discrepancy against a ¥0.02 tolerance — 100–500× the
+  threshold, which is why no tolerance tuning could have prevented it.
+- **Manufactured instance, second mechanism.** `invoice_004.pdf`'s seller tax
+  id was read as `91370000WGE377ZA0G` (a `2` became `Z`). GB 32100-2015 excludes
+  `I O Z S V` from the code alphabet, so the value is not merely
+  check-character-wrong: `repair_uscc` deliberately declines to repair it and
+  `party_info` reports a checksum failure on a clean invoice. A deterministic
+  lookalike map (`O→0, I→1, Z→2, S→5, V→U`) plus checksum verification repaired
+  **both observed cases exactly** (`Z→2` and `O→0` each reproduced the labelled
+  id character-for-character), and the checksum gate is what makes the repair
+  safe rather than a guess.
+- **Batch-scoped fragility.** `dup_invoice_number` recall fell to 0.667 and
+  then 0.0 purely because one invoice of a duplicate pair failed extraction and
+  was dropped: the survivor's number becomes unique, so the rule cannot fire.
+  The classifier names this `masked_partner_lost` rather than reporting it as
+  "unexplained" — the first run's output, before the classifier knew about
+  batches, would have made a false accusation against the harness.
+- **Cost and latency.** ¥0.3605 of list price over 117 calls
+  (198,549 input / 100,842 output tokens) against the ¥25 ceiling — 1.4 % of
+  budget. 419 s wall clock at 4 workers, 16.69 s mean per invoice, 11.3
+  invoices/min. Linear extrapolation to 100 k invoices: **≈¥401 and ≈147 hours
+  at 4 workers**, plus **≈12,200 documents** that would still need a human or a
+  second model pass at the measured 12.2 % failure rate.
+- **What did not degrade.** `tax_rate`, `self_dealing` and `invoice_date` held
+  precision and recall at 1.0 across all three rounds; the damage is
+  concentrated in the rules that read the fields the model misreads most
+  (`amount_including_tax`, tax ids, invoice numbers).
+
+**Interview angle.**
+
+- *The negative result is the deliverable.* 1.000 was an upper bound; the
+  measured pipeline scores F1 0.68–0.72. Saying that before being asked is worth
+  more than defending the 1.000.
+- *Separate engine quality from pipeline reliability.* Precision loss (1.000 →
+  0.658) is entirely OCR-driven: every false positive is a rule correctly
+  describing a document that was read wrong. Recall loss splits cleanly into
+  documents that were never read (12.2 %) and signals that were read away
+  (masked). Those need different fixes, so they are reported separately.
+- *Measurement code needs the same scrutiny as product code.* Two of the three
+  defects found in this task were in the harness — ground-truth-based
+  attribution and the subset-vs-full-batch convention — and both would have
+  published a wrong number. Finding them is the argument for building the
+  harness test-first rather than scripting it.
+- *Cost is not the constraint; reliability is.* ¥401 for 100 k invoices is
+  negligible next to the 12,200 documents that would land in a human queue. The
+  optimisation target is the JSON decode path, not the token bill.
+
+---
+
 ## Notes, deviations and open items
 
 - **Task A file placement** deviates from the suggested `benchmark/eval_audit.py`:
@@ -252,3 +388,32 @@ about test isolation.
 - `benchmark/results/audit_eval.json` is written by the runner but git-ignored
   (`benchmark/results/`); the tracked artifact is `docs/audit-eval.md`, which
   contains every number.
+- **Section E artifacts follow the same convention.** `benchmark/results/e2e_eval.json`
+  exists in the working tree and holds every per-round raw number, but
+  `benchmark/results/` is git-ignored by an earlier decision, so the *tracked*
+  artifact is `docs/e2e-eval.md` (regenerable from the JSON with
+  `python scripts/run_e2e_eval.py --render-only`, zero cost). If the raw JSON
+  should be committed, the `.gitignore` line needs revisiting — flagged rather
+  than silently overridden. `benchmark/results/e2e_mock.json` is the zero-cost
+  harness self-check (`--extractor mock`, two rounds): with a perfect extractor
+  it scores 1.000 on every metric, which is the control showing the harness is
+  not structurally biased towards the low numbers it reports for the real API.
+- **The run's endpoint host is redacted** in the artifact
+  (`*.maas.aliyuncs.com (dedicated deployment, host redacted)`). The configured
+  base URL is an account-specific MaaS subdomain, and this repository is public;
+  `redact_endpoint` keeps the public DashScope host verbatim and reduces a
+  dedicated one to its suffix.
+- **Cost is list price, not an invoice.** Token counts are measured exactly;
+  the CNY figure applies the published `qwen-vl-plus` list price (¥0.8/M input,
+  ¥2/M output, 华北2 北京) to them. The account was partly on free-tier quota
+  during these runs — the observed 403 on the fallback model says so — so a ¥0
+  bill would be a billing artefact, not evidence that extraction is free.
+- **Not metered:** the OpenAI SDK's own `max_retries=2` transport retries. A
+  retried request is not a separate billed response, so its tokens are not
+  visible through the usage hook; the recorded totals are the tokens of the
+  responses that were actually returned.
+- **The `qwen3.5-ocr` fallback is non-functional in this environment** (403
+  `insufficient_quota`), so every primary failure became a hard extraction
+  failure. That arguably makes the 12.2 % failure rate an upper bound on what the
+  configured model pair could achieve, and it is the strongest reason to fix the
+  JSON decode path rather than rely on the fallback.

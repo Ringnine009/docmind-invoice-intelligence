@@ -38,7 +38,7 @@ polished UI.
 | Custom graph with `hash()` node ids | Deterministic **networkx** knowledge graph + JSON API |
 | `templates/index.html` (jinja-ish page) | **React + TypeScript + Vite** dashboard with progress, audit, **analysis** & graph views |
 | Real (PII-bearing) sample invoices | Fully **synthetic** sample set + objective benchmark |
-| Manual "does it work?" | `pytest` suite (120+ tests), field-level accuracy benchmark |
+| Manual "does it work?" | `pytest` suite (240+ tests), field-level accuracy + end-to-end audit evaluation |
 
 ## Architecture
 
@@ -206,15 +206,48 @@ raises instead of quietly scoring 0.
 micro P = R = F1 = 1.000 (12/12 anomalies, 0 false positives). That is a
 *detector-agrees-with-generator* result, not a generalisation claim — the
 synthetic generator both writes the labels and applies exactly the perturbation
-each rule looks for, and the engine is scored on labelled field values rather
-than on what the vision model actually returned. The measurement that matters
-for a real deployment (end-to-end, OCR errors included) is not taken here;
-the full list of caveats is at the top of `docs/audit-eval.md`.
+each rule looks for, and this page is scored on labelled field values rather
+than on what the vision model actually returned. The end-to-end measurement is
+now taken, and it is much lower — see below. The full list of caveats is at the
+top of [docs/audit-eval.md](docs/audit-eval.md).
+
+### End-to-end evaluation (real extraction + audit together)
+
+The number an interviewer asks for: *does the audit still work when the OCR is
+wrong?*
+
+```bash
+python scripts/run_e2e_eval.py --rounds 2     # real API, hard ¥25 budget fuse
+python scripts/run_e2e_eval.py --extractor mock --rounds 2   # offline harness check
+python scripts/run_e2e_eval.py --render-only  # re-render the page, zero cost
+```
+
+It sends the same 30 PDFs through the real extractor, scores the fields, then
+runs the audit engine over **what the model actually returned** and scores it
+against the same labels. Results, cost and per-invoice failure instances are in
+[docs/e2e-eval.md](docs/e2e-eval.md); the raw per-round data is in
+`benchmark/results/e2e_eval.json`.
+
+| Input to the audit engine | micro P | micro R | micro F1 |
+|---|---|---|---|
+| Labelled field values (the 1.000 above) | 1.000 | 1.000 | 1.000 |
+| Real extraction, auditable subset | 0.658 | 0.807 | 0.725 |
+| Real extraction, failed extractions counted as missed | 0.658 | 0.694 | 0.676 |
+
+Field-level accuracy on the same runs: 0.827 mean with failed extractions
+counted as empty documents (the convention of the recorded 0.8249 baseline —
+reproduced), 0.942 on the auditable subset. Every extraction failure in three
+rounds had the same cause (`malformed JSON` from the primary model, twice, with
+the fallback rejected by the endpoint), and the audit damage is traceable to
+specific invoices: one injected arithmetic error was re-read into
+self-consistency and vanished, while misread totals and invoice numbers
+manufactured false positives through `qr_crosscheck` and `party_info`.
+
 
 ## Tests
 
 ```bash
-pytest            # 120+ tests, fully offline (LLM calls are mocked)
+pytest            # 240+ tests, fully offline (LLM calls are mocked)
 ```
 
 Coverage: schema contract, every audit rule, graph construction, JSON
@@ -236,11 +269,11 @@ app/                  FastAPI application (layered)
     batch/            thread-safe batch store (JSON persistence)
   api/                REST routes
 frontend/             React + TS + Vite dashboard (upload/progress/results/audit/graph/export)
-scripts/              synthetic data generator, benchmark, smoke test, secret scan, server check
+scripts/              synthetic data generator, benchmark, audit eval, end-to-end eval, smoke test, secret scan, server check
 samples/              30 synthetic invoice PDFs (reportlab, Chinese e-invoice layout)
 benchmark/            ground_truth.json + benchmark results
-tests/                120+ pytest tests (offline)
-docs/                 benchmark report, data-compliance, NOTICE (credits)
+tests/                240+ pytest tests (offline)
+docs/                 benchmark report, audit-engine eval, end-to-end eval, data-compliance, NOTICE (credits)
 ```
 
 ## Roadmap / known limitations
@@ -297,8 +330,15 @@ FastAPI 分层架构，密钥全部走环境变量（pydantic-settings），使�
   明确区分"真实上传"与"合成演示数据"；
 - **评测基准**：30 张 reportlab 生成的合成中文发票 + 机器可读 ground
   truth，评测脚本输出字段级准确率与平均置信度（见 `docs/benchmark.md`）；
+- **端到端评测（真实视觉模型 → 抽取 → 审计 → 打分）**：把 30 张 PDF 真实
+  送进 Qwen-VL 抽取链路，再用**模型实际输出**（而非标注字段）跑审计引擎并
+  与同一套异常标签比对，带逐次 token 记账与 ¥25 预算熔断（见
+  `docs/e2e-eval.md`）。结论是诚实的负面结果：审计 micro F1 从标注字段上的
+  1.000 降到 0.68–0.72（召回 0.69–0.81、精确率 0.66），并给出具体失败实例
+  ——某张票的算术异常被"自我一致地读错"从而被掩盖，另有多张正常票因金额/
+  号码误读被 `qr_crosscheck`、`party_info` 误报；
 - **数据合规**：原始样例含真实个人信息与企业税号，一律不入库；仓库仅
   包含合成样例与标注，附密钥扫描脚本（`scripts/scan_secrets.py`）。
 
 后端 `uvicorn app.main:app` 一键启动（自动托管前端构建产物），离线演示
-与全部 120+ 测试均使用 mock 抽取器，不消耗 API 额度。
+与全部 240+ 测试均使用 mock 抽取器，不消耗 API 额度。

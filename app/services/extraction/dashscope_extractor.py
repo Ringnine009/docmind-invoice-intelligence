@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 from pathlib import Path
+from typing import Any, Callable, Mapping
 
 from app.core.config import Settings, get_settings
 from app.core.uscc import repair_uscc
@@ -54,18 +55,35 @@ _EXTRACTION_PROMPT = """你是一个专业的增值税发票信息抽取引擎�
 }"""
 
 
+#: Called as ``recorder(model, usage)`` after every billed model response, with
+#: usage keys ``prompt_tokens`` / ``completion_tokens`` / ``total_tokens``.
+#: Purely observational: it cannot change the prompt or the sampling parameters,
+#: and it is invoked before JSON parsing so a response that is billed but then
+#: discarded still gets accounted for.
+UsageRecorder = Callable[[str, Mapping[str, Any]], None]
+
+
 class DashScopeExtractor(Extractor):
     """Vision extraction backed by a DashScope OpenAI-compatible chat model.
 
     Uses ``qwen-vl-plus`` by default with ``qwen3.5-ocr`` as fallback. Each
     model call is retried once on flaky responses, and JSON output is repaired
     tolerantly before normalization (see json_utils.extract_json).
+
+    ``usage_recorder`` is an optional observability hook used by the
+    end-to-end evaluation to account for tokens (and therefore cost) without
+    duplicating the request construction here.
     """
 
     name = "dashscope"
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        usage_recorder: UsageRecorder | None = None,
+    ) -> None:
         self.settings = settings or get_settings()
+        self.usage_recorder = usage_recorder
         self._client = None
 
     def _get_client(self):
@@ -123,6 +141,20 @@ class DashScopeExtractor(Extractor):
                     "GB 32100-2015 check character repaired"
                 )
 
+    def _record_usage(self, model: str, response: Any) -> None:
+        """Hand the billed token counts to the recorder, if one is installed."""
+        if self.usage_recorder is None:
+            return
+        usage = getattr(response, "usage", None)
+        self.usage_recorder(
+            model,
+            {
+                "prompt_tokens": int(getattr(usage, "prompt_tokens", 0) or 0),
+                "completion_tokens": int(getattr(usage, "completion_tokens", 0) or 0),
+                "total_tokens": int(getattr(usage, "total_tokens", 0) or 0),
+            },
+        )
+
     def _call_model(self, model: str, image_bytes: bytes, mime: str) -> dict:
         b64 = base64.b64encode(image_bytes).decode("ascii")
         response = self._get_client().chat.completions.create(
@@ -142,5 +174,8 @@ class DashScopeExtractor(Extractor):
             temperature=0.0,
             response_format={"type": "json_object"},
         )
+        # Record before parsing: a response that costs tokens and then fails to
+        # parse still costs tokens.
+        self._record_usage(model, response)
         content = response.choices[0].message.content or ""
         return extract_json(content)

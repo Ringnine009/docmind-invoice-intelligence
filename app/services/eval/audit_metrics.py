@@ -243,16 +243,28 @@ def evaluate_audit(
     names: Sequence[str] | None = None,
     mapping: Mapping[str, Iterable[Any]] | None = None,
     registered_rule_ids: Iterable[str] | None = None,
+    numbers: Mapping[str, str | None] | None = None,
 ) -> dict:
     """Score ``findings`` against the anomaly labels in ``gt_files``.
 
     ``names`` is the batch order the findings were produced with (defaults to
     the sorted ground-truth keys, which is what the runner uses).
+
+    ``numbers`` overrides the invoice number used to resolve a finding that
+    carries no usable ``invoice_index`` (batch-level rules such as
+    ``dup_invoice_number``). It defaults to the ground-truth numbers, which is
+    right when the engine ran over labelled fields. An end-to-end run must pass
+    the numbers the batch was actually built from — otherwise a misread invoice
+    number makes a genuine finding unresolvable and silently scores the very
+    error under test as a missed detection.
     """
     normalized = validate_mapping(gt_files, mapping, registered_rule_ids)
     names = list(names) if names is not None else sorted(gt_files)
 
-    numbers = {n: (gt_files[n].get("invoice_number") or None) for n in names}
+    if numbers is None:
+        numbers = {n: (gt_files[n].get("invoice_number") or None) for n in names}
+    else:
+        numbers = {n: (numbers.get(n) or None) for n in names}
     gt_sets = {
         n: set(gt_files[n].get("anomalies") or []) for n in names
     }
@@ -427,14 +439,20 @@ Read these before quoting the numbers above.
   with clean, machine-printed fields. The audit rules fire on exactly the
   quantity the generator perturbed, so this measures "do the rules detect
   known perturbations", not "do the rules catch fraud as it occurs".
-- **Ground-truth input, not extracted input.** The engine is evaluated over the
-  *labelled* field values, not over what the vision model actually returned for
-  the PDFs. That isolates the audit engine, which is the point of this page —
-  but it means the end-to-end path is not measured here, and it is the harder
-  one: a mis-OCRed amount can both hide a real anomaly (the rule sees a
-  consistent but wrong document) and manufacture a false one. End-to-end
-  numbers need a real extraction run (`scripts/run_benchmark.py
-  --extractor dashscope`) scored the same way.
+- **Ground-truth input, not extracted input.** Every number on this page is
+  scored over the *labelled* field values, not over what the vision model
+  actually returned for the PDFs. That isolates the audit engine, which is the
+  point of this page — but the end-to-end path is the harder one, and it is now
+  measured rather than deferred: `python scripts/run_e2e_eval.py` sends the same
+  {n_invoices} PDFs through the real extractor and scores the engine the same
+  way ([e2e-eval.md](e2e-eval.md)). Over three rounds on the same batch it
+  scores micro recall 0.694–0.807, micro precision 0.658 and micro F1
+  0.676–0.725, against the 1.000 above. So treat 1.000 as an upper bound that a
+  real extraction run does not reach. Both directions of the caveat that used to
+  stand here are now demonstrated with instances: one injected arithmetic error
+  was re-read into self-consistency and became invisible, and misread totals and
+  invoice numbers manufactured false positives through `qr_crosscheck` and
+  `party_info`. Read the two pages together.
 - **Not a production distribution.** Real batches contain skewed tax rates,
   red-ink invoices, voided invoices, multi-page scans, low-quality photos and
   partial extractions. None of that is represented here, so precision in
