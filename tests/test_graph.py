@@ -2,7 +2,7 @@
 
 from app.services.graph.builder import GraphBuilder
 
-from conftest import make_invoice, make_item
+from conftest import SELLER_TAX_ID, make_invoice, make_item
 
 
 def build(batch):
@@ -28,12 +28,12 @@ class TestGraphBuilder:
 
     def test_same_company_deduplicated(self):
         batch = [
-            make_invoice(number="11111111111111111111", seller_name="甲公司", seller_tax_id="91440183797370649Q"),
-            make_invoice(number="22222222222222222222", seller_name="甲公司", seller_tax_id="91440183797370649Q"),
+            make_invoice(number="11111111111111111111", seller_name="甲公司", seller_tax_id=SELLER_TAX_ID),
+            make_invoice(number="22222222222222222222", seller_name="甲公司", seller_tax_id=SELLER_TAX_ID),
         ]
         graph = build(batch)
         companies = [n for n in graph["nodes"] if n["type"] == "company"]
-        # 甲公司 + 同济大学 (buyer, deduplicated across both invoices)
+        # 甲公司 + the default synthetic buyer (deduplicated across both invoices)
         assert len(companies) == 2
         seller = next(n for n in companies if n["properties"].get("name") == "甲公司")
         assert seller["properties"]["invoice_count"] == 2

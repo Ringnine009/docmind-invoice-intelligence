@@ -2,13 +2,18 @@
 
 from app.core.uscc import repair_uscc, uscc_check_char, uscc_checksum_ok
 
-# Valid real-world codes (format verified against the original dataset).
+from conftest import BUYER_TAX_ID, BUYER_TAX_ID_BAD_CHECK
+
+# Synthetic 18-character codes. The registration-authority digits and the
+# region codes are shaped like real unified social credit codes, but the
+# 9-character organisation-code section is all zeros, so none of these is
+# registered to any entity; only the check character is real maths.
 VALID = [
-    "12100000425006125J",
-    "91440183797370649Q",
-    "91310107MA1G1C8Q5W",
-    "91310000MA1FR8MB1W",
-    "91110302562134916R",
+    BUYER_TAX_ID,  # 91310000000000000U
+    "91440000000000000Y",
+    "91110000000000000E",
+    "913200000000000000",
+    "915100000000000009",
 ]
 
 
@@ -18,11 +23,11 @@ class TestChecksum:
             assert uscc_checksum_ok(code)
 
     def test_wrong_check_char_fails(self):
-        assert not uscc_checksum_ok("12100000425006125K")
+        assert not uscc_checksum_ok(BUYER_TAX_ID_BAD_CHECK)
 
     def test_bad_length_fails(self):
         assert not uscc_checksum_ok("123")
-        assert not uscc_checksum_ok("12100000425006125JK")
+        assert not uscc_checksum_ok(BUYER_TAX_ID + "K")
 
     def test_check_char_is_deterministic(self):
         for code in VALID:
@@ -31,16 +36,16 @@ class TestChecksum:
 
 class TestRepair:
     def test_repairs_wrong_check_char(self):
-        bad = "12100000425006125K"  # valid body, wrong check char
+        bad = BUYER_TAX_ID_BAD_CHECK  # valid body, wrong check char
         fixed, changed = repair_uscc(bad)
         assert changed is True
         assert uscc_checksum_ok(fixed)
-        assert fixed == "12100000425006125J"
+        assert fixed == BUYER_TAX_ID
 
     def test_valid_code_untouched(self):
-        fixed, changed = repair_uscc("91440183797370649Q")
+        fixed, changed = repair_uscc("91440000000000000Y")
         assert changed is False
-        assert fixed == "91440183797370649Q"
+        assert fixed == "91440000000000000Y"
 
     def test_none_untouched(self):
         assert repair_uscc(None) == (None, False)

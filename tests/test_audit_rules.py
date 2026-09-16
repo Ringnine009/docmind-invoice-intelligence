@@ -9,7 +9,7 @@ from app.models.invoice import InvoiceDocument
 from app.services.audit.base import AuditRule, get_registered_rules
 from app.services.audit.engine import AuditEngine
 
-from conftest import make_invoice, make_item
+from conftest import BUYER_TAX_ID, BUYER_TAX_ID_BAD_CHECK, SELLER_TAX_ID, make_invoice, make_item
 
 
 def rule_ids(batch: list[InvoiceDocument]) -> set[str]:
@@ -179,13 +179,13 @@ class TestPartyInfoRule:
 
     def test_failed_checksum_tax_id_warns(self):
         # valid 18-char format, wrong check character → checksum warning
-        batch = [make_invoice(buyer_tax_id="12100000425006125K")]
+        batch = [make_invoice(buyer_tax_id=BUYER_TAX_ID_BAD_CHECK)]
         findings = findings_for(batch, "party_info")
         assert any(f.severity == Severity.WARNING and "checksum" in f.message for f in findings)
 
     def test_valid_uscc_passes_checksum(self):
-        batch = [make_invoice(buyer_tax_id="12100000425006125J",
-                              seller_tax_id="91310107MA1G1C8Q5W")]
+        batch = [make_invoice(buyer_tax_id=BUYER_TAX_ID,
+                              seller_tax_id="913200000000000000")]
         findings = findings_for(batch, "party_info")
         assert all("checksum" not in (f.message or "") for f in findings)
 
@@ -196,7 +196,7 @@ class TestPartyInfoRule:
         assert any("self" in (f.message or "").lower() for f in findings)
 
     def test_same_tax_id_detected(self):
-        batch = [make_invoice(buyer_tax_id="91440183797370649Q", seller_tax_id="91440183797370649Q")]
+        batch = [make_invoice(buyer_tax_id=SELLER_TAX_ID, seller_tax_id=SELLER_TAX_ID)]
         findings = findings_for(batch, "party_info")
         assert any(f.severity == Severity.ERROR for f in findings)
 

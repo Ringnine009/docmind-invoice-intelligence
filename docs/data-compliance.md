@@ -13,18 +13,35 @@ audit and the mitigation.
 The original 30 sample PDFs (`_source/…/invoices/`) and their extraction log
 (`_source/…/data/invoices.xlsx`) contain:
 
-| Category | Example found | Risk |
+| Category | What was found | Risk |
 |---|---|---|
-| Real corporate names | 同济大学, 郑州京东优凯贸易有限公司, 南京苏宁易购电子商务有限公司 … | Real tax entities |
-| Real unified social credit codes (税号) | `12100000425006125J`, `91440183797370649Q` … | Real registered tax ids |
-| Real personal names (开票人) | 王梅, 刘娅, 徐辰峰, 谢爱迎 … | Personal names |
-| Real bank account numbers | 中国农业银行上海翔殷支行 `0332670…` | Financial PII |
-| Real order numbers | 订单号 298533157708, JD order ids | Transaction traces |
+| Real corporate names | Several real entities: a university, a trading company, an e-commerce company | Real tax entities |
+| Real unified social credit codes (税号) | Multiple 18-character codes, `12…` (public institution) and `91…` (enterprise) prefixes | Real registered tax ids |
+| Real personal names (开票人) | Four 2–3 character Chinese personal names | Personal names |
+| Real bank account numbers | One account at a real Shanghai bank branch | Financial PII |
+| Real order numbers | One 12-digit order id plus JD order ids | Transaction traces |
 | Hard-coded API key | `AIza…` (redacted) in `_source/…/code/config.py` | Leaked credential |
+
+The literal values are **not** reproduced here. Quoting real identifiers
+inside the document that promises not to publish them is still publishing
+them; the audit above records category, shape and count instead.
 
 **Verdict**: the original samples contain PII and must **not** be distributed.
 `_source/` is excluded from the repository (see `.gitignore`) and is only kept
 locally as read-only reference material. It is **not** committed.
+
+### Remediation: the literals had leaked into the test-suite
+
+The audit below found the PII in `_source/`, but several of those values had
+also been copied into the committed test-suite (`tests/conftest.py`,
+`tests/test_extraction.py`, `tests/test_graph.py`, `tests/test_schema.py`,
+`tests/test_uscc.py`, `tests/test_audit_rules.py`) and shipped on the public
+`master` branch — which made the guarantee below false. Every occurrence has
+since been replaced with an equivalent synthetic value that keeps the tests
+meaningful (valid length, valid GB 32100-2015 check character, wrong-check
+variant still repairable) and `tests/test_pii_guard.py` now scans the whole
+repository and fails the build if any documented identifier reappears.
+
 
 ## Mitigation: fully synthetic sample set
 
@@ -48,8 +65,11 @@ byte of data in it is fabricated.
 
 ## Guarantees
 
-- The repository contains no real personal/company data (verified by
-  `scripts/scan_secrets.py` and manual review);
+- The repository contains no real personal/company data — enforced by
+  `tests/test_pii_guard.py` (which fails on any documented identifier) and by
+  `scripts/scan_secrets.py`, plus manual review;
+- Every sample value used in the test-suite is synthetic, including the
+  buyer/seller parties, tax ids and issuer names in `tests/conftest.py`;
 - No API key or credential appears in any committed file
   (`scripts/scan_secrets.py` enforces this);
 - The `.env` file (if any) is git-ignored; configuration is provided through

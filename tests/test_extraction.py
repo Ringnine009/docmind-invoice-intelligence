@@ -43,24 +43,24 @@ class TestNormalizeRawInvoice:
         raw = {
             "发票号码": "24417000000034170288",
             "开票日期": "2024年07月20日",
-            "购买方名称": "同济大学",
-            "购买方税号": "12100000425006125J",
+            "购买方名称": "远景云服务有限公司",
+            "购买方税号": "91310000000000000U",
             "销售方名称": "示例公司",
-            "销售方税号": "91440183797370649Q",
+            "销售方税号": "91440000000000000Y",
             "项目明细": [{"项目名称": "固态硬盘", "金额": 884.07, "税率": "13%", "税额": 114.93}],
             "金额": "884.07",
             "税额": "114.93",
             "价税合计小写": "￥999.00",
             "校验码": "51191401325570116214",
-            "开票人": "王梅",
+            "开票人": "顾星野",
             "置信度": {"发票号码": 0.99},
         }
         doc = normalize_raw_invoice(raw)
         assert isinstance(doc, InvoiceDocument)
         assert doc.invoice_number == "24417000000034170288"
         assert doc.issue_date.isoformat() == "2024-07-20"
-        assert doc.buyer.name == "同济大学"
-        assert doc.seller.tax_id == "91440183797370649Q"
+        assert doc.buyer.name == "远景云服务有限公司"
+        assert doc.seller.tax_id == "91440000000000000Y"
         assert doc.amount_including_tax == 999.0
         assert doc.items[0].tax_rate == 13.0
         assert doc.items[0].amount_excluding_tax == 884.07
