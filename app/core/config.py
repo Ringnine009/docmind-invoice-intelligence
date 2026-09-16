@@ -112,6 +112,21 @@ class Settings(BaseSettings):
         default="data",
         validation_alias=AliasChoices("DOCMIND_DATA_DIR", "data_dir"),
     )
+    # --- Upload limits ---
+    # Uploads are untrusted client input: without a cap a single request can
+    # write an arbitrarily large file (or 200 of them) to disk.
+    max_upload_mb: int = Field(
+        default=20,
+        gt=0,
+        validation_alias=AliasChoices("DOCMIND_MAX_UPLOAD_MB", "max_upload_mb"),
+    )
+    max_batch_upload_mb: int = Field(
+        default=200,
+        gt=0,
+        validation_alias=AliasChoices(
+            "DOCMIND_MAX_BATCH_UPLOAD_MB", "max_batch_upload_mb"
+        ),
+    )
     host: str = Field(
         default="127.0.0.1",
         validation_alias=AliasChoices("DOCMIND_HOST", "host"),

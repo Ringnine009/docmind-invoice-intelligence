@@ -53,6 +53,37 @@ def _get_doc_value(doc: dict, path: str):
     return doc.get(path)
 
 
+def _mb(size_bytes: float) -> float:
+    return size_bytes / (1024 * 1024)
+
+
+def _oversize_detail(name: str, size_bytes: int, limit_mb: int) -> str:
+    """Readable 413 message: which file, how big, against which limit."""
+    return (
+        f"File '{name}' is {_mb(size_bytes):.1f} MB, over the "
+        f"{limit_mb} MB per-file upload limit"
+    )
+
+
+def _declared_upload_size(pdf: UploadFile) -> Optional[int]:
+    """Size of the received part in bytes, or ``None`` when it is unknown.
+
+    The multipart parser reports it as ``UploadFile.size``; if that is missing,
+    measure the spooled file instead, so the limit holds even for an
+    ``UploadFile`` built without a size.
+    """
+    if pdf.size is not None:
+        return pdf.size
+    try:
+        position = pdf.file.tell()
+        pdf.file.seek(0, io.SEEK_END)
+        size = pdf.file.tell()
+        pdf.file.seek(position)
+        return size
+    except (OSError, ValueError):
+        return None
+
+
 def _summarize_results(results: list[dict | None]) -> dict:
     """Count *successful* extractions and collect the per-file failures.
 
@@ -133,8 +164,11 @@ async def upload_invoices(request: Request, files: list[UploadFile] = File(...))
     settings = request.app.state.settings
     upload_dir = settings.data_path / "uploads"
     upload_dir.mkdir(parents=True, exist_ok=True)
+    per_file_limit = settings.max_upload_mb * 1024 * 1024
 
-    names: list[str] = []
+    # Validate every file *before* writing any of them, so a rejected upload
+    # leaves no half-imported batch behind in the upload directory.
+    declared: list[Optional[int]] = []
     for pdf in pdfs:
         raw = pdf.filename or ""
         # Security: only a bare file name is acceptable. Reject absolute
@@ -152,13 +186,44 @@ async def upload_invoices(request: Request, files: list[UploadFile] = File(...))
         # Defense in depth: resolved target must stay inside the upload dir.
         if not target.resolve().is_relative_to(upload_dir.resolve()):
             raise HTTPException(status_code=400, detail=f"Unsafe filename: {raw!r}")
+        size = _declared_upload_size(pdf)
+        if size is not None and size > per_file_limit:
+            raise HTTPException(
+                status_code=413,
+                detail=_oversize_detail(name, size, settings.max_upload_mb),
+            )
+        declared.append(size)
+
+    total_declared = sum(size for size in declared if size is not None)
+    batch_limit = settings.max_batch_upload_mb * 1024 * 1024
+    if total_declared > batch_limit:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Batch upload is {_mb(total_declared):.1f} MB, over the "
+                f"{settings.max_batch_upload_mb} MB per-request upload limit"
+            ),
+        )
+
+    names: list[str] = []
+    for pdf in pdfs:
+        name = PurePath((pdf.filename or "").replace("\\", "/")).name
+        target = upload_dir / name
         stem = Path(name).stem
         suffix_idx = 1
         while target.exists():
             target = upload_dir / f"{stem}_{suffix_idx}{Path(name).suffix}"
             suffix_idx += 1
+        data = await pdf.read()
+        # Defense in depth: the bytes actually received are authoritative, in
+        # case the parser reported no size for this part.
+        if len(data) > per_file_limit:
+            raise HTTPException(
+                status_code=413,
+                detail=_oversize_detail(name, len(data), settings.max_upload_mb),
+            )
         with target.open("wb") as out:
-            out.write(await pdf.read())
+            out.write(data)
         names.append(target.name)
 
     batch_id = request.app.state.store.create(names, source="upload")
