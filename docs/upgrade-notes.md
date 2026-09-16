@@ -1,15 +1,21 @@
 # Upgrade notes — audit evaluation, compliance fix, failure semantics, rule isolation
 
-Four changes to DocMind, each done test-first (red → green). Every number below
+Six changes to DocMind, each done test-first (red → green). Every number below
 comes from a command actually run in this working tree; nothing is estimated.
 
 Verification baseline: `pytest` → **186 passed** (132 pre-existing tests all
-still green, +54 new). `npm run build` (tsc -b && vite build) → success.
-No `git push` was performed; all work is local.
+still green, +54 new) for sections A–D; **296 passed** after sections E and F
+(251 before section F, +45 new tests). `npm run build` (tsc -b && vite build) →
+success. No `git push` was performed; all work is local.
 
 > A fifth change is documented in [Section E](#e-the-end-to-end-measurement-the-audit-page-deferred)
 > below: the end-to-end evaluation, which closes the limitation section A
 > admitted and reports a much lower — and more useful — number.
+>
+> A sixth change is documented in [Section F](#f-the-122-extraction-failure-rate--measured-fixed-re-measured):
+> the 12.2% extraction-failure rate that section E measured, reproduced, fixed
+> and then re-measured — including a defect the first fix introduced that only
+> the re-measurement caught.
 
 ---
 
@@ -238,6 +244,12 @@ about test isolation.
 
 ## E. The end-to-end measurement the audit page deferred
 
+> The numbers in this section are the **pre-fix** measurement, preserved as the
+> baseline it is: the extraction-failure rate it reports (12.2%) is what
+> [section F](#f-the-122-extraction-failure-rate--measured-fixed-re-measured)
+> then fixed and re-measured. Both rounds are published side by side on
+> [e2e-eval.md](e2e-eval.md).
+
 **Problem.** Section A shipped an honest limitation: the audit engine scored
 1.000, but it was scored over the *labelled* field values in
 `benchmark/ground_truth.json`, not over what the vision model actually returned
@@ -368,6 +380,168 @@ which invoices happened to fail extraction that round.
 
 ---
 
+## F. The 12.2% extraction-failure rate — measured, fixed, re-measured
+
+**Symptom.** Section E's measurement produced the number this section exists
+for: **11 of 90 extraction attempts (12.2%) failed outright**, every single one
+with the same message — `malformed JSON in model response: Expecting ',' 
+delimiter` from the primary model, on both attempts, after which the configured
+fallback was refused by the endpoint (`403 insufficient_quota`). An extraction
+failure is not a misread field: the document never reaches the audit engine, so
+every anomaly label on it is scored as missed. That made the *decode path* — not
+the audit rules — the binding constraint on end-to-end recall, and section E's
+own recommendation list called it "the single highest-value change in this list".
+
+**Reproduce before fixing.** The artifact recorded the failure *text*; the raw
+response had been thrown away. So the first step was to make the defect
+reproducible rather than guessed at: a throwaway probe (`.probe/capture_raw.py`,
+untracked scratch) replayed the failing invoices through the project's own
+prompt, DPI and sampling parameters and dumped the raw content. Three of those
+responses are now committed as fixtures under `tests/fixtures/model_responses/`,
+each one named for the invoice it came from in the test docstring. That is what
+the first red test ran against.
+
+**Root cause — framing damage, not missing content.** Both shapes have the whole
+document in them; only the JSON framing is broken:
+
+1. **The outer object is never closed.** The model emits the complete body and
+   then rambles whitespace instead of writing the final `}`. The recorded
+   `char 743` / `char 716` errors are all at the end of the output.
+2. **A repeated tail.** The model re-emits members it already emitted and is cut
+   off mid-string, so `text[first "{"] : text[last "}"]` — the old decode path —
+   grabs a brace from inside the repetition and glues two fragments together into
+   something no parser accepts.
+3. **A repeated *skeleton*.** Found later, and it is the one that mattered most:
+   the model repeats the line-item template (`"项目名称": "", "数量": 0,
+   "金额": 0`) **out of the array it belongs to**, as top-level keys. Python's
+   `json` keeps the *last* occurrence of a duplicated key, so the placeholder
+   overwrote the number the model had already read correctly.
+
+**Fix** (three layers, cheapest first; every one of them test-first):
+
+- `json_utils._scan` — a small tokenizer that reports *how* a payload fails, and
+  specifically distinguishes **truncation** (input ended with containers still
+  open — the body was emitted, so closing it loses nothing) from **contradiction**
+  (`{"a": 1, "b": }` — any repair would have to invent a value, so it is
+  refused). `_closed_truncation` cuts back to the last *complete* outermost
+  member and closes the object: an unterminated member carries no value, so
+  nothing is dropped that was ever there.
+- `_decode` — duplicate keys resolve **first-occurrence-wins** instead of
+  `json`'s last-wins. The repetition is degeneration, not a correction; the
+  first emission is the reading. This is the fix for root cause 3, and it was
+  added only after the first re-measurement showed predicted amounts of `0.0`
+  carrying model-reported confidence 1.0.
+- `DashScopeExtractor` — a response that is still unusable (or that parses into
+  a document with **no invoice fields at all**) gets one corrective re-read: the
+  model's own output is replayed as its previous turn, followed by the parser's
+  complaint. A plain retry at temperature 0 is what reproduced the identical
+  defect in the measured run, so the correction is sampled (0.2) and bounded at
+  two calls per model. A model that *refuses* the request is now reported as
+  `model unavailable (request refused, no document read)` and accounted for in
+  the cost table with `ok=false`, instead of being folded into "2 tried".
+- `has_auditable_content` — the gate that stops a repair from turning "the model
+  never emitted the document" into a syntactically perfect, empty invoice. That
+  would report a read that never happened, which is the one failure a repair must
+  not create.
+
+**Results** (same 30 invoices, same 3 rounds, same parameters).
+
+| Metric | before | after | change |
+|---|---|---|---|
+| **Extraction failure rate** | **12.22%** (11/90) | **0.00%** (0/90) | **−12.22 pp** |
+| Invoices read | 79/90 | 90/90 | +11 |
+| micro F1 (failures counted as missed) | 0.6757 | **0.8148** | **+0.1391** |
+| micro precision (same convention) | 0.6579 | 0.7333 | +0.0754 |
+| micro recall (same convention) | 0.6944 | 0.9167 | +0.2223 |
+| micro F1 (auditable subset) | 0.7247 | 0.8148 | +0.0901 |
+| Field accuracy, whole batch (failures as empty) | 0.8272 | **0.9411** | **+11.39 pp** |
+| Field accuracy, auditable subset | 0.9421 | 0.9417 | −0.0004 |
+| API calls | 117 | 91 | −26 |
+| Cost, list price | ¥0.3605 | ¥0.3138 | −¥0.0468 |
+| Wall clock / mean per invoice | 419.4s / 16.69s | 299.3s / 12.86s | −29% / −23% |
+| Throughput at 4 workers | 11.3 inv/min | 18.04 inv/min | +60% |
+
+- **45.6% of responses (41/90) needed a framing repair**; only **one** response
+  in the whole run was unusable even after repair, and the corrective re-read
+  recovered it. The fallback model was never needed (`fallback_reads = 0`), and
+  the run cost *fewer* calls than before, because a repaired response no longer
+  burns a blind retry.
+- **Per-round micro F1 is now identical in all three rounds** (0.8148 / 0.8148 /
+  0.8148, range 0.0000, against 0.7692 / 0.6400 / 0.6087 before). The largest
+  source of run-to-run variance was never the model's sampling — it was *which
+  invoices happened to fail that round*. Removing the failure mode removed the
+  variance with it, which also makes every future comparison on this batch
+  meaningful.
+- **The residual loss is now entirely OCR.** Masked = 1 in every round and it is
+  the same invoice every time (`invoice_020.pdf`, `masked_value_error`: the model
+  read a self-consistent but wrong total, so `arithmetic_total` cannot fire).
+  Manufactured = 4 per round, the same four, all `qr_crosscheck` / `party_info`
+  false alarms on misread amounts and tax ids. The `masked_partner_lost` cases
+  that section E saw in rounds 2 and 3 — where a `duplicate_number` label was
+  lost purely because one invoice of the pair failed extraction and was dropped —
+  are gone, because nothing is dropped any more.
+- **One row is not comparable and the page says so.** *Field accuracy —
+  auditable subset* is flat (0.9421 → 0.9417), but the population changed: the
+  baseline excluded the 3–4 documents per round it could not read; this run
+  excludes none. The previously unreadable documents scored at about the batch
+  average. The comparable row is the whole batch with failures counted as
+  misses: **+11.39 pp**. This is exactly the trap section E warned about —
+  reporting only the auditable subset would have made the fix look like nothing.
+
+**The fix was wrong once, and re-measuring is what caught it.** The first
+post-fix run reported 0.00% failures, F1 0.6757 → 0.7333, and looked finished.
+Drilling into the *values* rather than the headline found 18 fields predicted as
+`0.0` while the model reported confidence 1.0 — the pre-fix run had none. A
+forensics probe (`.probe/forensics_zero_amounts.py`) reproduced the shape in 4 of
+21 live responses and dumped the payloads: every one of them arrived via the
+truncation repair, and every one was root cause 3 above — the model's own
+placeholder skeleton, kept by last-key-wins, overwriting the number it had
+actually read (`金额: 70.3` → `0`). Red test on the captured payload, then
+first-occurrence-wins, then re-run. The superseded artifact and the captured
+payloads are kept on disk (`benchmark/results/e2e_eval_after_run1_superseded.json`,
+`.probe/forensics/`); this is why the published "after" numbers are from the
+second run and not the first.
+
+**What is *not* claimed.**
+
+- The failure rate is 0/90 **on this batch, this model and this endpoint**. It
+  is not a claim that the model cannot produce unusable output; it is a claim
+  that this pipeline now recovers from the shapes it observed, and that the
+  recovery is recorded per document (`doc.corrections["json"]`) so a future run
+  can prove it was exercised rather than assume it.
+- The `qwen3.5-ocr` fallback is still non-functional in this environment. The
+  fix does not repair that; it removes the reason the run depended on it, and
+  reports it honestly when it is reached.
+- A repair recovers framing, never content. A response truncated *before* the
+  fields were emitted cannot be recovered — and because `compare_documents`
+  counts an absent prediction as a miss, a partial recovery is scored as the
+  partial read it is, not hidden.
+
+**Interview angle.**
+
+- *The strongest sentence in this repository is now a causal chain*: I measured a
+  12.2% extraction-failure rate, reproduced it from a captured raw response,
+  found it was JSON framing rather than OCR difficulty, fixed the decode path,
+  and re-ran the identical measurement to show 0.00% — with both rounds' numbers
+  published side by side. "I fixed a bug" is weak; "I built the instrument that
+  found the bug and the instrument is what proves the fix" is not.
+- *The measurement is the deliverable, twice over.* The second time it caught a
+  defect in my own fix that all 291 tests, the whole suite, and a green
+  headline number had missed — because the metric that moved (failure rate) was
+  not the metric that was broken (field values). Re-measuring after a fix is not
+  a formality.
+- *Repairing a broken payload is where honesty gets hard.* Every repair rule
+  here is written so it can only do one of two things: recover framing, or
+  refuse. It never supplies a value, it refuses internally contradictory input
+  rather than guessing, and a recovery that produces an empty document is
+  rejected as a failure — because the seductive version of this task is the one
+  where you make the failure rate go away without making the pipeline better.
+- *Variance is a reliability symptom.* Three rounds that agree to four decimals
+  are not a coincidence and not a better model — they are what is left when the
+  dominant noise source is a crash rather than sampling.
+
+---
+
 ## Notes, deviations and open items
 
 - **Task A file placement** deviates from the suggested `benchmark/eval_audit.py`:
@@ -414,6 +588,9 @@ which invoices happened to fail extraction that round.
   responses that were actually returned.
 - **The `qwen3.5-ocr` fallback is non-functional in this environment** (403
   `insufficient_quota`), so every primary failure became a hard extraction
-  failure. That arguably makes the 12.2 % failure rate an upper bound on what the
-  configured model pair could achieve, and it is the strongest reason to fix the
-  JSON decode path rather than rely on the fallback.
+  failure. That arguably made the 12.2 % failure rate an upper bound on what the
+  configured model pair could achieve, and it was the strongest reason to fix the
+  JSON decode path rather than rely on the fallback — which is what section F
+  did: the failure rate is now 0 % with the fallback still dead, and the refused
+  call is reported as `model unavailable` and accounted for instead of being
+  folded into "2 models tried".

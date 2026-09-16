@@ -85,13 +85,15 @@ Read these before quoting the numbers above.
   measured rather than deferred: `python scripts/run_e2e_eval.py` sends the same
   30 PDFs through the real extractor and scores the engine the same
   way ([e2e-eval.md](e2e-eval.md)). Over three rounds on the same batch it
-  scores micro recall 0.694–0.807, micro precision 0.658 and micro F1
-  0.676–0.725, against the 1.000 above. So treat 1.000 as an upper bound that a
-  real extraction run does not reach. Both directions of the caveat that used to
-  stand here are now demonstrated with instances: one injected arithmetic error
-  was re-read into self-consistency and became invisible, and misread totals and
-  invoice numbers manufactured false positives through `qr_crosscheck` and
-  `party_info`. Read the two pages together.
+  scores micro recall 0.917, micro precision 0.733 and micro F1 0.815, against
+  the 1.000 above. So treat 1.000 as an upper bound that a real extraction run
+  does not reach. (An earlier end-to-end run scored 0.676–0.725 F1; the gap was
+  an extraction-failure rate of 12.2%, since fixed and re-measured — the
+  before/after table is on the e2e page.) Both directions of the caveat that
+  used to stand here are demonstrated with instances: one injected arithmetic
+  error was re-read into self-consistency and became invisible (in every round),
+  and misread totals and invoice numbers manufactured false positives through
+  `qr_crosscheck` and `party_info`. Read the two pages together.
 - **Not a production distribution.** Real batches contain skewed tax rates,
   red-ink invoices, voided invoices, multi-page scans, low-quality photos and
   partial extractions. None of that is represented here, so precision in

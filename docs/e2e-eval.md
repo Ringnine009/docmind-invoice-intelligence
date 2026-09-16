@@ -12,14 +12,14 @@ the OCR is wrong?*
 ## Evaluation set
 
 - **Invoices**: 30 synthetic Chinese e-invoices (fully fabricated — see [data-compliance.md](data-compliance.md))
-- **Extractor**: `dashscope` via the project's own `DashScopeExtractor` — prompt, DPI, temperature and JSON repair unchanged
+- **Extractor**: `dashscope` via the project's own `DashScopeExtractor` — prompt, DPI and first-attempt temperature unchanged; a response that could not be turned into an invoice gets one corrective re-read (see the before/after section)
 - **Models**: primary `qwen-vl-plus`, fallback `qwen3.5-ocr`
 - **Rounds requested / completed**: 3 / 3 (same batch, same parameters — the
   spread below is model non-determinism, not a parameter change)
 - **Numeric tolerance**: ¥0.02 (unchanged from the
   field benchmark; widening it would hide exactly the OCR errors this
   page exists to measure)
-- **Generated**: 2026-09-16T13:47:02
+- **Generated**: 2026-09-16T14:45:09
 
 ## Cost and latency
 
@@ -30,14 +30,14 @@ they are inputs to the cost model, not measurements.
 
 | Metric | Value |
 |---|---|
-| API calls | 117 |
-| Input tokens | 198549 |
-| Output tokens | 100842 |
-| **Total cost (list price)** | **¥0.3605** |
+| API calls | 91 |
+| Input tokens | 158618 |
+| Output tokens | 93433 |
+| **Total cost (list price)** | **¥0.3138** |
 | Budget set | ¥25.0 |
-| Wall clock (all rounds) | 419.4s |
-| Mean single-invoice latency | 16.7s |
-| Effective throughput (workers=4) | 11.30 invoices/min |
+| Wall clock (all rounds) | 299.3s |
+| Mean single-invoice latency | 12.9s |
+| Effective throughput (workers=4) | 18.04 invoices/min |
 
 Whether an individual response was *usable* is not separately metered: the usage hook fires as soon as the response arrives, before JSON parsing, which is what makes a billed-but-discarded call visible in the token totals at all. The measured equivalent is the invoice-level Extraction failures count in each round below.
 
@@ -45,13 +45,41 @@ Per model:
 
 | Model | calls | failed | input tokens | output tokens | cost (¥) |
 |---|---|---|---|---|---|
-| `qwen-vl-plus` | 117 | 0 | 198549 | 100842 | 0.360523 |
+| `qwen-vl-plus` | 91 | 0 | 158618 | 93433 | 0.313760 |
 
 **Extrapolation to 100,000 invoices** (linear in the measured per-invoice cost and throughput — see the limitations):
 
-- Cost: **¥401**
-- Wall clock at 4 workers: **147.5 hours**
-- Human review queue: at the measured extraction-failure rate (0.1222), **12,222 documents** still need a human or a second model pass
+- Cost: **¥349**
+- Wall clock at 4 workers: **92.4 hours**
+- Human review queue: at the measured extraction-failure rate (0.0000), **0 documents** still need a human or a second model pass
+
+## Before / after the JSON-repair fix
+
+The previous version of this page measured the extraction-failure rate as **12.22%** (11/90 attempts) and every single failure had the same cause. The repair work targets that cause; the numbers below say whether it worked, and the *before* column is a recorded run rather than a recollection.
+
+- Baseline: `benchmark/results/e2e_eval_before_json_fix.json — scripts/run_e2e_eval.py --rounds 3, same 30 invoices, commit 9eb6ef1 (the run published as the previous version of this page)`
+  (generated 2026-09-16T13:47:02)
+
+| Metric | before | after | change |
+|---|---|---|---|
+| **Extraction failure rate** | **12.22%** (11/90) | **0.00%** (0/90) | -12.22 pp |
+| Invoices read | 79/90 | 90/90 | +11 |
+| micro F1 — auditable subset | 0.7247 | 0.8148 | +0.0901 |
+| micro F1 — failures counted as missed | 0.6757 | 0.8148 | +0.1391 |
+| micro precision — failures counted as missed | 0.6579 | 0.7333 | +0.0754 |
+| micro recall — failures counted as missed | 0.6944 | 0.9167 | +0.2223 |
+| Field accuracy — auditable subset (mean) | 0.9421 | 0.9417 | -0.0004 |
+| Field accuracy — failures as empty documents (mean) | 0.8272 | 0.9411 | +0.1139 |
+| API calls | 117 | 91 | -26 |
+| Cost, list price (¥) | 0.3605 | 0.3138 | -0.0468 |
+| Mean invoice latency (s) | 16.69 | 12.86 | -3.83 |
+
+Two of those rows have to be read together. *Field accuracy — auditable subset* barely moves, but its population is not the same one: the baseline excluded the 3–4 documents per round it could not read, while this run excludes none — so the previously unreadable documents scored at roughly the batch average. The comparable row is the one below it, the whole batch with failures counted as misses, which moved **+11.39 pp**.
+
+Responses the repair ladder recovered (recorded per document, so the recovery path is measured rather than assumed): `truncated-tail-closed` × 41
+
+Residual extraction failures in this run (the *after* column): **none** — every attempt in this run produced an auditable document.
+
 
 ## Per-round raw results
 
@@ -59,47 +87,138 @@ Nothing is averaged away: each round is reported exactly as measured.
 
 ### Round 1
 
-- Wall clock: 157.9s
-- Invoices extracted: 27 / 30 (failures: 3)
-- Audit micro (extracted input): P=0.7143 R=0.9091 F1=0.8000 (tp=10 fp=4 fn=1)
+- Wall clock: 87.1s
+- Invoices extracted: 30 / 30 (failures: 0)
+- Audit micro (extracted input): P=0.7333 R=0.9167 F1=0.8148 (tp=11 fp=4 fn=1)
 - Audit micro (labelled input): P=1.0000 R=1.0000 F1=1.0000 (tp=12 fp=0 fn=0)
-- Audit micro (extracted input, failures counted as missed): P=0.7143 R=0.8333 F1=0.7692 (tp=10 fp=4 fn=2)
-
-Extraction failures (recorded verbatim):
-
-| File | Error |
-|---|---|
-| `invoice_025.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 732); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 732); qwen3.5-ocr: Error  |
-| `invoice_027.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 739); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 739); qwen3.5-ocr: Error  |
-| `invoice_028.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 199 column 4 (char 3042); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 200 column 4 (char 3182); qwen3.5-ocr: Er |
+- Audit micro (extracted input, failures counted as missed): P=0.7333 R=0.9167 F1=0.8148 (tp=11 fp=4 fn=1)
 
 - Unattributed findings (could not be resolved to an invoice): **0**
 
-- Field accuracy, auditable subset (failed files excluded): 0.9421 (228/242)
-- Field accuracy, failures counted as empty documents: **0.8470** — the convention of the recorded 0.8249 baseline (`benchmark/results/real_qwen-vl-plus.json — run_benchmark.py --extractor dashscope, 30 invoices, 3 extraction failures, same batch`), i.e. +2.21 pp against it
+- Field accuracy, auditable subset (failed files excluded): 0.9405 (253/269)
+- Field accuracy, failures counted as empty documents: **0.9398** — the convention of the recorded 0.8249 baseline (`benchmark/results/real_qwen-vl-plus.json — run_benchmark.py --extractor dashscope, 30 invoices, 3 extraction failures, same batch`), i.e. +11.49 pp against it
 
 Field accuracy (auditable subset):
 
 | Field | accuracy | correct / compared | mean confidence |
 |---|---|---|---|
-| `invoice_number` | 0.9630 | 26/27 | 0.9989 |
-| `issue_date` | 1.0000 | 27/27 | 0.9985 |
-| `buyer.name` | 1.0000 | 27/27 | 0.9974 |
-| `buyer.tax_id` | 0.8148 | 22/27 | 0.9974 |
-| `seller.name` | 1.0000 | 27/27 | 0.9974 |
-| `seller.tax_id` | 0.7692 | 20/26 | 0.9956 |
-| `amount_excluding_tax` | 1.0000 | 27/27 | 0.9985 |
-| `tax_amount` | 0.9630 | 26/27 | 0.9985 |
-| `amount_including_tax` | 0.9630 | 26/27 | 0.9985 |
+| `invoice_number` | 0.9667 | 29/30 | 0.9993 |
+| `issue_date` | 1.0000 | 30/30 | 0.9993 |
+| `buyer.name` | 1.0000 | 30/30 | 0.9987 |
+| `buyer.tax_id` | 0.8333 | 25/30 | 0.9983 |
+| `seller.name` | 1.0000 | 30/30 | 0.9987 |
+| `seller.tax_id` | 0.7586 | 22/29 | 0.9967 |
+| `amount_excluding_tax` | 1.0000 | 30/30 | 0.9990 |
+| `tax_amount` | 0.9667 | 29/30 | 0.9987 |
+| `amount_including_tax` | 0.9333 | 28/30 | 0.9990 |
 
 Findings from rules that back no anomaly class — reported, not counted as false positives: `line_items_sum` x 1
 
-Per-field failures (14 rows — every wrong field, not the average over them):
+Per-field failures (16 rows — every wrong field, not the average over them):
 
 | File | Field | Ground truth | Extracted |
 |---|---|---|---|
 | `invoice_003.pdf` | `buyer.tax_id` | `91310000CKEG8HUY0C` | `91310000CKEG8HUYOC` |
-| `invoice_004.pdf` | `buyer.tax_id` | `91310000Y6XHQPN6NK` | `91310000Y6XHQPNN6NK` |
+| `invoice_004.pdf` | `seller.tax_id` | `91370000WGE3772A0G` | `91370000WGE377ZA0G` |
+| `invoice_006.pdf` | `seller.tax_id` | `91120000MJJGAX86MJ` | `91120000MJGAX86MJ` |
+| `invoice_009.pdf` | `invoice_number` | `24000956981693406088` | `24000956881693406088` |
+| `invoice_009.pdf` | `buyer.tax_id` | `91310000PYPPM6BD2Q` | `91310000PYPMM6BD2K` |
+| `invoice_011.pdf` | `tax_amount` | `1301.9` | `1299.9` |
+| `invoice_011.pdf` | `amount_including_tax` | `15362.08` | `15360.08` |
+| `invoice_014.pdf` | `seller.tax_id` | `91330000CN79MJBFHK` | `91330000CN79MJBHFF` |
+| `invoice_015.pdf` | `seller.tax_id` | `91120000F2JLM144R6` | `91120000F2LM144R6` |
+| `invoice_016.pdf` | `buyer.tax_id` | `913100009179N9NUE6` | `913100009179N9UE6` |
+| `invoice_020.pdf` | `amount_including_tax` | `656.09` | `706.09` |
+| `invoice_021.pdf` | `buyer.tax_id` | `91310000JBP42X9APD` | `91310000BP4ZX9APD` |
+| `invoice_021.pdf` | `seller.tax_id` | `91440000RHWBGGX8TL` | `91440000RHWBGX8TL` |
+| `invoice_022.pdf` | `seller.tax_id` | `91120000L3TFKDYY8N` | `91120000L3TFKDY8N` |
+| `invoice_025.pdf` | `seller.tax_id` | `91510000058NQ9XABR` | `9151000058NQ9XABR` |
+| `invoice_027.pdf` | `buyer.tax_id` | `91310000JCG2CU9PA3` | `91310000JG2CU9PA3` |
+
+### Round 2
+
+- Wall clock: 110.3s
+- Invoices extracted: 30 / 30 (failures: 0)
+- Audit micro (extracted input): P=0.7333 R=0.9167 F1=0.8148 (tp=11 fp=4 fn=1)
+- Audit micro (labelled input): P=1.0000 R=1.0000 F1=1.0000 (tp=12 fp=0 fn=0)
+- Audit micro (extracted input, failures counted as missed): P=0.7333 R=0.9167 F1=0.8148 (tp=11 fp=4 fn=1)
+
+- Unattributed findings (could not be resolved to an invoice): **0**
+
+- Field accuracy, auditable subset (failed files excluded): 0.9405 (253/269)
+- Field accuracy, failures counted as empty documents: **0.9398** — the convention of the recorded 0.8249 baseline (`benchmark/results/real_qwen-vl-plus.json — run_benchmark.py --extractor dashscope, 30 invoices, 3 extraction failures, same batch`), i.e. +11.49 pp against it
+
+Field accuracy (auditable subset):
+
+| Field | accuracy | correct / compared | mean confidence |
+|---|---|---|---|
+| `invoice_number` | 0.9667 | 29/30 | 1.0000 |
+| `issue_date` | 1.0000 | 30/30 | 1.0000 |
+| `buyer.name` | 1.0000 | 30/30 | 1.0000 |
+| `buyer.tax_id` | 0.8333 | 25/30 | 1.0000 |
+| `seller.name` | 1.0000 | 30/30 | 1.0000 |
+| `seller.tax_id` | 0.7586 | 22/29 | 0.9967 |
+| `amount_excluding_tax` | 1.0000 | 30/30 | 1.0000 |
+| `tax_amount` | 0.9667 | 29/30 | 1.0000 |
+| `amount_including_tax` | 0.9333 | 28/30 | 1.0000 |
+
+Findings from rules that back no anomaly class — reported, not counted as false positives: `line_items_sum` x 1
+
+Per-field failures (16 rows — every wrong field, not the average over them):
+
+| File | Field | Ground truth | Extracted |
+|---|---|---|---|
+| `invoice_003.pdf` | `buyer.tax_id` | `91310000CKEG8HUY0C` | `91310000CKEG8HUYOC` |
+| `invoice_004.pdf` | `seller.tax_id` | `91370000WGE3772A0G` | `91370000WGE377ZA0G` |
+| `invoice_006.pdf` | `seller.tax_id` | `91120000MJJGAX86MJ` | `91120000MJGAX86MJ` |
+| `invoice_009.pdf` | `invoice_number` | `24000956981693406088` | `24000956881693406088` |
+| `invoice_009.pdf` | `buyer.tax_id` | `91310000PYPPM6BD2Q` | `91310000PYPMM6BD2K` |
+| `invoice_011.pdf` | `tax_amount` | `1301.9` | `1299.9` |
+| `invoice_011.pdf` | `amount_including_tax` | `15362.08` | `15360.08` |
+| `invoice_014.pdf` | `seller.tax_id` | `91330000CN79MJBFHK` | `91330000CN79MJBHFF` |
+| `invoice_015.pdf` | `seller.tax_id` | `91120000F2JLM144R6` | `91120000F2LM144R6` |
+| `invoice_016.pdf` | `buyer.tax_id` | `913100009179N9NUE6` | `913100009179N9UE6` |
+| `invoice_020.pdf` | `amount_including_tax` | `656.09` | `706.09` |
+| `invoice_021.pdf` | `buyer.tax_id` | `91310000JBP42X9APD` | `91310000BP4ZX9APD` |
+| `invoice_021.pdf` | `seller.tax_id` | `91440000RHWBGGX8TL` | `91440000RHWBGX8TL` |
+| `invoice_022.pdf` | `seller.tax_id` | `91120000L3TFKDYY8N` | `91120000L3TFKDY8N` |
+| `invoice_025.pdf` | `seller.tax_id` | `91510000058NQ9XABR` | `9151000058NQ9XABR` |
+| `invoice_027.pdf` | `buyer.tax_id` | `91310000JCG2CU9PA3` | `91310000JG2CU9PA3` |
+
+### Round 3
+
+- Wall clock: 101.9s
+- Invoices extracted: 30 / 30 (failures: 0)
+- Audit micro (extracted input): P=0.7333 R=0.9167 F1=0.8148 (tp=11 fp=4 fn=1)
+- Audit micro (labelled input): P=1.0000 R=1.0000 F1=1.0000 (tp=12 fp=0 fn=0)
+- Audit micro (extracted input, failures counted as missed): P=0.7333 R=0.9167 F1=0.8148 (tp=11 fp=4 fn=1)
+
+- Unattributed findings (could not be resolved to an invoice): **0**
+
+- Field accuracy, auditable subset (failed files excluded): 0.9442 (254/269)
+- Field accuracy, failures counted as empty documents: **0.9436** — the convention of the recorded 0.8249 baseline (`benchmark/results/real_qwen-vl-plus.json — run_benchmark.py --extractor dashscope, 30 invoices, 3 extraction failures, same batch`), i.e. +11.87 pp against it
+
+Field accuracy (auditable subset):
+
+| Field | accuracy | correct / compared | mean confidence |
+|---|---|---|---|
+| `invoice_number` | 0.9667 | 29/30 | 1.0000 |
+| `issue_date` | 1.0000 | 30/30 | 1.0000 |
+| `buyer.name` | 1.0000 | 30/30 | 1.0000 |
+| `buyer.tax_id` | 0.8333 | 25/30 | 1.0000 |
+| `seller.name` | 1.0000 | 30/30 | 1.0000 |
+| `seller.tax_id` | 0.7586 | 22/29 | 0.9967 |
+| `amount_excluding_tax` | 1.0000 | 30/30 | 1.0000 |
+| `tax_amount` | 0.9667 | 29/30 | 1.0000 |
+| `amount_including_tax` | 0.9667 | 29/30 | 1.0000 |
+
+Findings from rules that back no anomaly class — reported, not counted as false positives: `line_items_sum` x 1
+
+Per-field failures (15 rows — every wrong field, not the average over them):
+
+| File | Field | Ground truth | Extracted |
+|---|---|---|---|
+| `invoice_003.pdf` | `buyer.tax_id` | `91310000CKEG8HUY0C` | `91310000CKEG8HUYOC` |
 | `invoice_004.pdf` | `seller.tax_id` | `91370000WGE3772A0G` | `91370000WGE377ZA0G` |
 | `invoice_006.pdf` | `seller.tax_id` | `91120000MJJGAX86MJ` | `91120000MJGAX86MJ` |
 | `invoice_009.pdf` | `invoice_number` | `24000956981693406088` | `24000956881693406088` |
@@ -112,131 +231,20 @@ Per-field failures (14 rows — every wrong field, not the average over them):
 | `invoice_021.pdf` | `buyer.tax_id` | `91310000JBP42X9APD` | `91310000BP4ZX9APD` |
 | `invoice_021.pdf` | `seller.tax_id` | `91440000RHWBGGX8TL` | `91440000RHWBGX8TL` |
 | `invoice_022.pdf` | `seller.tax_id` | `91120000L3TFKDYY8N` | `91120000L3TFKDY8N` |
-
-### Round 2
-
-- Wall clock: 148.2s
-- Invoices extracted: 26 / 30 (failures: 4)
-- Audit micro (extracted input): P=0.6154 R=0.8000 F1=0.6957 (tp=8 fp=5 fn=2)
-- Audit micro (labelled input): P=1.0000 R=1.0000 F1=1.0000 (tp=12 fp=0 fn=0)
-- Audit micro (extracted input, failures counted as missed): P=0.6154 R=0.6667 F1=0.6400 (tp=8 fp=5 fn=4)
-
-Extraction failures (recorded verbatim):
-
-| File | Error |
-|---|---|
-| `invoice_010.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 410 column 4 (char 6642); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 452 column 6 (char 6643); qwen3.5-ocr: Er |
-| `invoice_012.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 716); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 716); qwen3.5-ocr: Error  |
-| `invoice_015.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 743); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 231 column 4 (char 3244); qwen3.5-ocr: Erro |
-| `invoice_016.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 412 column 4 (char 6541); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 180 column 4 (char 2519); qwen3.5-ocr: Er |
-
-- Unattributed findings (could not be resolved to an invoice): **0**
-
-- Field accuracy, auditable subset (failed files excluded): 0.9444 (221/234)
-- Field accuracy, failures counted as empty documents: **0.8210** — the convention of the recorded 0.8249 baseline (`benchmark/results/real_qwen-vl-plus.json — run_benchmark.py --extractor dashscope, 30 invoices, 3 extraction failures, same batch`), i.e. -0.39 pp against it
-
-Field accuracy (auditable subset):
-
-| Field | accuracy | correct / compared | mean confidence |
-|---|---|---|---|
-| `invoice_number` | 0.9615 | 25/26 | 0.9996 |
-| `issue_date` | 1.0000 | 26/26 | 0.9996 |
-| `buyer.name` | 1.0000 | 26/26 | 0.9992 |
-| `buyer.tax_id` | 0.8846 | 23/26 | 0.9992 |
-| `seller.name` | 1.0000 | 26/26 | 0.9992 |
-| `seller.tax_id` | 0.7308 | 19/26 | 0.9992 |
-| `amount_excluding_tax` | 1.0000 | 26/26 | 0.9988 |
-| `tax_amount` | 0.9615 | 25/26 | 0.9988 |
-| `amount_including_tax` | 0.9615 | 25/26 | 0.9992 |
-
-Findings from rules that back no anomaly class — reported, not counted as false positives: `line_items_sum` x 1
-
-Per-field failures (13 rows — every wrong field, not the average over them):
-
-| File | Field | Ground truth | Extracted |
-|---|---|---|---|
-| `invoice_003.pdf` | `buyer.tax_id` | `91310000CKEG8HUY0C` | `91310000CKEG8HUYOC` |
-| `invoice_004.pdf` | `seller.tax_id` | `91370000WGE3772A0G` | `91370000WGE377ZA0G` |
-| `invoice_006.pdf` | `seller.tax_id` | `91120000MJJGAX86MJ` | `91120000MJGAX86MJ` |
-| `invoice_009.pdf` | `invoice_number` | `24000956981693406088` | `24000956881693406088` |
-| `invoice_009.pdf` | `buyer.tax_id` | `91310000PYPPM6BD2Q` | `91310000PYPMM6BD2K` |
-| `invoice_011.pdf` | `tax_amount` | `1301.9` | `1299.9` |
-| `invoice_014.pdf` | `seller.tax_id` | `91330000CN79MJBFHK` | `91330000CN79MJBFAX` |
-| `invoice_020.pdf` | `seller.tax_id` | `913700008M0WREW9M3` | `913700008MOWREW9M3` |
-| `invoice_020.pdf` | `amount_including_tax` | `656.09` | `706.09` |
-| `invoice_021.pdf` | `buyer.tax_id` | `91310000JBP42X9APD` | `91310000BP4ZX9APD` |
-| `invoice_021.pdf` | `seller.tax_id` | `91440000RHWBGGX8TL` | `91440000RHWBGX8TL` |
-| `invoice_022.pdf` | `seller.tax_id` | `91120000L3TFKDYY8N` | `91120000L3TFKDY8N` |
-| `invoice_025.pdf` | `seller.tax_id` | `91510000058NQ9XABR` | `9151000058NQ9XABR` |
-
-### Round 3
-
-- Wall clock: 113.2s
-- Invoices extracted: 26 / 30 (failures: 4)
-- Audit micro (extracted input): P=0.6364 R=0.7000 F1=0.6667 (tp=7 fp=4 fn=3)
-- Audit micro (labelled input): P=1.0000 R=1.0000 F1=1.0000 (tp=12 fp=0 fn=0)
-- Audit micro (extracted input, failures counted as missed): P=0.6364 R=0.5833 F1=0.6087 (tp=7 fp=4 fn=5)
-
-Extraction failures (recorded verbatim):
-
-| File | Error |
-|---|---|
-| `invoice_004.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 200 column 4 (char 3293); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 50 column 4 (char 899); qwen3.5-ocr: Erro |
-| `invoice_013.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 212 column 4 (char 3197); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 210 column 4 (char 3147); qwen3.5-ocr: Er |
-| `invoice_015.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 743); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 743); qwen3.5-ocr: Error  |
-| `invoice_026.pdf` | ExtractionError: all vision models failed (2 tried): qwen-vl-plus (attempt 1): malformed JSON in model response: Expecting ',' delimiter: line 205 column 4 (char 3130); qwen-vl-plus (attempt 2): malformed JSON in model response: Expecting ',' delimiter: line 40 column 4 (char 737); qwen3.5-ocr: Erro |
-
-- Unattributed findings (could not be resolved to an invoice): **0**
-
-- Field accuracy, auditable subset (failed files excluded): 0.9399 (219/233)
-- Field accuracy, failures counted as empty documents: **0.8135** — the convention of the recorded 0.8249 baseline (`benchmark/results/real_qwen-vl-plus.json — run_benchmark.py --extractor dashscope, 30 invoices, 3 extraction failures, same batch`), i.e. -1.14 pp against it
-
-Field accuracy (auditable subset):
-
-| Field | accuracy | correct / compared | mean confidence |
-|---|---|---|---|
-| `invoice_number` | 0.9615 | 25/26 | 1.0000 |
-| `issue_date` | 1.0000 | 26/26 | 1.0000 |
-| `buyer.name` | 1.0000 | 26/26 | 1.0000 |
-| `buyer.tax_id` | 0.8077 | 21/26 | 1.0000 |
-| `seller.name` | 1.0000 | 26/26 | 1.0000 |
-| `seller.tax_id` | 0.7600 | 19/25 | 0.9981 |
-| `amount_excluding_tax` | 1.0000 | 26/26 | 1.0000 |
-| `tax_amount` | 0.9615 | 25/26 | 1.0000 |
-| `amount_including_tax` | 0.9615 | 25/26 | 1.0000 |
-
-Findings from rules that back no anomaly class — reported, not counted as false positives: `line_items_sum` x 1
-
-Per-field failures (14 rows — every wrong field, not the average over them):
-
-| File | Field | Ground truth | Extracted |
-|---|---|---|---|
-| `invoice_003.pdf` | `buyer.tax_id` | `91310000CKEG8HUY0C` | `91310000CKEG8HUYOC` |
-| `invoice_006.pdf` | `seller.tax_id` | `91120000MJJGAX86MJ` | `91120000MJGAX86MJ` |
-| `invoice_009.pdf` | `invoice_number` | `24000956981693406088` | `24000956881693406088` |
-| `invoice_009.pdf` | `buyer.tax_id` | `91310000PYPPM6BD2Q` | `91310000PYPMM6BD2K` |
-| `invoice_011.pdf` | `tax_amount` | `1301.9` | `1291.9` |
-| `invoice_014.pdf` | `seller.tax_id` | `91330000CN79MJBFHK` | `91330000CN79MJBHFF` |
-| `invoice_016.pdf` | `buyer.tax_id` | `913100009179N9NUE6` | `913100009179N9UE6` |
-| `invoice_020.pdf` | `seller.tax_id` | `913700008M0WREW9M3` | `913700008MOWREW9M3` |
-| `invoice_020.pdf` | `amount_including_tax` | `656.09` | `706.09` |
-| `invoice_021.pdf` | `buyer.tax_id` | `91310000JBP42X9APD` | `91310000BP4ZX9APD` |
-| `invoice_021.pdf` | `seller.tax_id` | `91440000RHWBGGX8TL` | `91440000RHWBGX8TL` |
-| `invoice_022.pdf` | `seller.tax_id` | `91120000L3TFKDYY8N` | `91120000L3TFKDY8N` |
 | `invoice_025.pdf` | `seller.tax_id` | `91510000058NQ9XABR` | `9151000058NQ9XABR` |
 | `invoice_027.pdf` | `buyer.tax_id` | `91310000JCG2CU9PA3` | `91310000JG2CU9PA3` |
 
 ### Across rounds
 
-- Field-level accuracy, auditable subset: mean 0.9421, range 0.0045 (values [0.9421, 0.9444, 0.9399])
-- Field-level accuracy, failures as empty documents: mean 0.8272, range 0.0335 (values [0.847, 0.821, 0.8135]) — the convention comparable to the recorded 0.8249 baseline
+- Field-level accuracy, auditable subset: mean 0.9417, range 0.0037 (values [0.9405, 0.9405, 0.9442])
+- Field-level accuracy, failures as empty documents: mean 0.9411, range 0.0038 (values [0.9398, 0.9398, 0.9436]) — the convention comparable to the recorded 0.8249 baseline
 - Variance measurable: **True**
 
 | Metric | labelled input (mean / range) | extracted input (mean / range) | extracted, failures as misses (mean / range) |
 |---|---|---|---|
-| micro precision | 1.0000 / 0.0000 | 0.6554 / 0.0989 | 0.6554 / 0.0989 |
-| micro recall | 1.0000 / 0.0000 | 0.8030 / 0.2091 | 0.6944 / 0.2500 |
-| micro f1 | 1.0000 / 0.0000 | 0.7208 / 0.1333 | 0.6726 / 0.1605 |
+| micro precision | 1.0000 / 0.0000 | 0.7333 / 0.0000 | 0.7333 / 0.0000 |
+| micro recall | 1.0000 / 0.0000 | 0.9167 / 0.0000 | 0.9167 / 0.0000 |
+| micro f1 | 1.0000 / 0.0000 | 0.8148 / 0.0000 | 0.8148 / 0.0000 |
 
 ## End-to-end vs labelled fields
 
@@ -247,8 +255,8 @@ now reports it and links back here.
 | Input to the audit engine | micro P | micro R | micro F1 | TP | FP | FN |
 |---|---|---|---|---|---|---|
 | Labelled field values (`docs/audit-eval.md`) | 1.0000 | 1.0000 | 1.0000 | 36 | 0 | 0 |
-| Real extraction output, auditable subset | 0.6579 | 0.8065 | 0.7247 | 25 | 13 | 6 |
-| Real extraction output, failed extractions counted as missed | 0.6579 | 0.6944 | 0.6757 | 25 | 13 | 11 |
+| Real extraction output, auditable subset | 0.7333 | 0.9167 | 0.8148 | 33 | 12 | 3 |
+| Real extraction output, failed extractions counted as missed | 0.7333 | 0.9167 | 0.8148 | 33 | 12 | 3 |
 
 ## Failure modes
 
@@ -256,7 +264,7 @@ now reports it and links back here.
 
 - Masked (labelled anomaly no longer reported): **1**
 - Manufactured (finding on an invoice the labels call clean): **4**
-- Not auditable (labelled invoice whose extraction failed): **1**
+- Not auditable (labelled invoice whose extraction failed): **0**
 
 **Masked — `invoice_020.pdf` / `arithmetic_mismatch`**
 
@@ -271,24 +279,6 @@ now reports it and links back here.
 | `amount_excluding_tax` | `630.18` | `630.18` |
 | `tax_amount` | `75.91` | `75.91` |
 | `amount_including_tax` | `656.09` **←** | `706.09` |
-
-**Manufactured — `invoice_011.pdf` / `arithmetic_mismatch`**
-
-- Mechanism: `manufactured_value_error`
-- Rule(s): `arithmetic_total`
-- Detected on labelled fields: `False`
-- Driving fields that changed: `tax_amount`
-- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `amount_excluding_tax` | `14060.18` | `14060.18` |
-| `tax_amount` | `1301.9` **←** | `1299.9` |
-| `amount_including_tax` | `15362.08` | `15362.08` |
-
-Findings the engine did emit for this invoice:
-
-- `arithmetic_total` (`amount_including_tax`, ERROR): Invoice 24001134873471434558: arithmetic mismatch — 14060.18 + 1299.90 = 15360.08 but declared total is 15362.08 (diff 2.00).
 
 **Manufactured — `invoice_004.pdf` / `missing_seller_tax_id`**
 
@@ -325,6 +315,25 @@ Findings the engine did emit for this invoice:
 
 - `qr_crosscheck` (`invoice_number`, ERROR): Invoice 24000956881693406088: QR code encodes invoice number 24000956981693406088, which differs from the extracted number (possible tampering or OCR error).
 
+**Manufactured — `invoice_011.pdf` / `qr_mismatch`**
+
+- Mechanism: `manufactured_value_error`
+- Rule(s): `qr_crosscheck`
+- Detected on labelled fields: `False`
+- Driving fields that changed: `amount_including_tax`
+- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
+
+| Driving field | labelled | extracted |
+|---|---|---|
+| `qr_payload` | `01,32,,24001134873471434558,15362.08,20240211` | `01,32,,24001134873471434558,15362.08,20240211` |
+| `invoice_number` | `24001134873471434558` | `24001134873471434558` |
+| `amount_including_tax` | `15362.08` **←** | `15360.08` |
+| `issue_date` | `2024-02-11` | `2024-02-11` |
+
+Findings the engine did emit for this invoice:
+
+- `qr_crosscheck` (`amount_including_tax`, ERROR): Invoice 24001134873471434558: QR code encodes total ¥15362.08 but the extracted total is ¥15360.08 (diff ¥2.00).
+
 **Manufactured — `invoice_020.pdf` / `qr_mismatch`**
 
 - Mechanism: `manufactured_value_error`
@@ -343,16 +352,12 @@ Findings the engine did emit for this invoice:
 Findings the engine did emit for this invoice:
 
 - `qr_crosscheck` (`amount_including_tax`, ERROR): Invoice 24002004556238692221: QR code encodes total ¥656.09 but the extracted total is ¥706.09 (diff ¥50.00).
-
-**Unauditable — `invoice_027.pdf`** (classes: `future_date`)
-
-Extraction failed, so the document never reached the audit engine and its labels can only be missed. These are counted as false negatives in the full-batch row above.
 
 ### Round 2
 
-- Masked (labelled anomaly no longer reported): **2**
-- Manufactured (finding on an invoice the labels call clean): **5**
-- Not auditable (labelled invoice whose extraction failed): **2**
+- Masked (labelled anomaly no longer reported): **1**
+- Manufactured (finding on an invoice the labels call clean): **4**
+- Not auditable (labelled invoice whose extraction failed): **0**
 
 **Masked — `invoice_020.pdf` / `arithmetic_mismatch`**
 
@@ -368,23 +373,98 @@ Extraction failed, so the document never reached the audit engine and its labels
 | `tax_amount` | `75.91` | `75.91` |
 | `amount_including_tax` | `656.09` **←** | `706.09` |
 
-**Masked — `invoice_014.pdf` / `duplicate_number`**
+**Manufactured — `invoice_004.pdf` / `missing_seller_tax_id`**
 
-- Mechanism: `masked_partner_lost`
-- Rule(s): `dup_invoice_number`
-- Detected on labelled fields: `True`
-- Driving fields that changed: *(none)*
-- Document self-consistent after extraction: `None` — `True` means the rule sees a coherent document and cannot fire
+- Mechanism: `manufactured_value_error`
+- Rule(s): `party_info@seller.tax_id`
+- Detected on labelled fields: `False`
+- Driving fields that changed: `seller.tax_id`
+- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
 
 | Driving field | labelled | extracted |
 |---|---|---|
-| `invoice_number` | `24417000000029990002` | `24417000000029990002` |
+| `seller.tax_id` | `91370000WGE3772A0G` **←** | `91370000WGE377ZA0G` |
 
-The rule is batch-scoped, so the other invoices sharing this ground-truth number matter too:
+Findings the engine did emit for this invoice:
 
-| Partner invoice | audited | ground-truth number | extracted number | still shares the number |
-|---|---|---|---|---|
-| `invoice_015.pdf` | `False` | `24417000000029990002` | — | `False` |
+- `party_info` (`seller.tax_id`, WARNING): Invoice 24417000000019990001: seller tax id "91370000WGE377ZA0G" fails the GB 32100-2015 checksum (possible OCR error or forged document).
+
+**Manufactured — `invoice_009.pdf` / `qr_mismatch`**
+
+- Mechanism: `manufactured_value_error`
+- Rule(s): `qr_crosscheck`
+- Detected on labelled fields: `False`
+- Driving fields that changed: `invoice_number`
+- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
+
+| Driving field | labelled | extracted |
+|---|---|---|
+| `qr_payload` | `01,32,,24000956981693406088,1147.93,20241217` | `01,32,,24000956981693406088,1147.93,20241217` |
+| `invoice_number` | `24000956981693406088` **←** | `24000956881693406088` |
+| `amount_including_tax` | `1147.93` | `1147.93` |
+| `issue_date` | `2024-12-17` | `2024-12-17` |
+
+Findings the engine did emit for this invoice:
+
+- `qr_crosscheck` (`invoice_number`, ERROR): Invoice 24000956881693406088: QR code encodes invoice number 24000956981693406088, which differs from the extracted number (possible tampering or OCR error).
+
+**Manufactured — `invoice_011.pdf` / `qr_mismatch`**
+
+- Mechanism: `manufactured_value_error`
+- Rule(s): `qr_crosscheck`
+- Detected on labelled fields: `False`
+- Driving fields that changed: `amount_including_tax`
+- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
+
+| Driving field | labelled | extracted |
+|---|---|---|
+| `qr_payload` | `01,32,,24001134873471434558,15362.08,20240211` | `01,32,,24001134873471434558,15362.08,20240211` |
+| `invoice_number` | `24001134873471434558` | `24001134873471434558` |
+| `amount_including_tax` | `15362.08` **←** | `15360.08` |
+| `issue_date` | `2024-02-11` | `2024-02-11` |
+
+Findings the engine did emit for this invoice:
+
+- `qr_crosscheck` (`amount_including_tax`, ERROR): Invoice 24001134873471434558: QR code encodes total ¥15362.08 but the extracted total is ¥15360.08 (diff ¥2.00).
+
+**Manufactured — `invoice_020.pdf` / `qr_mismatch`**
+
+- Mechanism: `manufactured_value_error`
+- Rule(s): `qr_crosscheck`
+- Detected on labelled fields: `False`
+- Driving fields that changed: `amount_including_tax`
+- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
+
+| Driving field | labelled | extracted |
+|---|---|---|
+| `qr_payload` | `01,32,,24002004556238692221,656.09,20241108` | `01,32,,24002004556238692221,656.09,20241108` |
+| `invoice_number` | `24002004556238692221` | `24002004556238692221` |
+| `amount_including_tax` | `656.09` **←** | `706.09` |
+| `issue_date` | `2024-11-08` | `2024-11-08` |
+
+Findings the engine did emit for this invoice:
+
+- `qr_crosscheck` (`amount_including_tax`, ERROR): Invoice 24002004556238692221: QR code encodes total ¥656.09 but the extracted total is ¥706.09 (diff ¥50.00).
+
+### Round 3
+
+- Masked (labelled anomaly no longer reported): **1**
+- Manufactured (finding on an invoice the labels call clean): **4**
+- Not auditable (labelled invoice whose extraction failed): **0**
+
+**Masked — `invoice_020.pdf` / `arithmetic_mismatch`**
+
+- Mechanism: `masked_value_error`
+- Rule(s): `arithmetic_total`
+- Detected on labelled fields: `True`
+- Driving fields that changed: `amount_including_tax`
+- Document self-consistent after extraction: `True` — `True` means the rule sees a coherent document and cannot fire
+
+| Driving field | labelled | extracted |
+|---|---|---|
+| `amount_excluding_tax` | `630.18` | `630.18` |
+| `tax_amount` | `75.91` | `75.91` |
+| `amount_including_tax` | `656.09` **←** | `706.09` |
 
 **Manufactured — `invoice_011.pdf` / `arithmetic_mismatch`**
 
@@ -420,22 +500,6 @@ Findings the engine did emit for this invoice:
 
 - `party_info` (`seller.tax_id`, WARNING): Invoice 24417000000019990001: seller tax id "91370000WGE377ZA0G" fails the GB 32100-2015 checksum (possible OCR error or forged document).
 
-**Manufactured — `invoice_020.pdf` / `missing_seller_tax_id`**
-
-- Mechanism: `manufactured_value_error`
-- Rule(s): `party_info@seller.tax_id`
-- Detected on labelled fields: `False`
-- Driving fields that changed: `seller.tax_id`
-- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `seller.tax_id` | `913700008M0WREW9M3` **←** | `913700008MOWREW9M3` |
-
-Findings the engine did emit for this invoice:
-
-- `party_info` (`seller.tax_id`, WARNING): Invoice 24002004556238692221: seller tax id "913700008MOWREW9M3" fails the GB 32100-2015 checksum (possible OCR error or forged document).
-
 **Manufactured — `invoice_009.pdf` / `qr_mismatch`**
 
 - Mechanism: `manufactured_value_error`
@@ -473,150 +537,6 @@ Findings the engine did emit for this invoice:
 Findings the engine did emit for this invoice:
 
 - `qr_crosscheck` (`amount_including_tax`, ERROR): Invoice 24002004556238692221: QR code encodes total ¥656.09 but the extracted total is ¥706.09 (diff ¥50.00).
-
-**Unauditable — `invoice_012.pdf`** (classes: `missing_seller_tax_id`)
-
-Extraction failed, so the document never reached the audit engine and its labels can only be missed. These are counted as false negatives in the full-batch row above.
-
-**Unauditable — `invoice_015.pdf`** (classes: `duplicate_number`)
-
-Extraction failed, so the document never reached the audit engine and its labels can only be missed. These are counted as false negatives in the full-batch row above.
-
-### Round 3
-
-- Masked (labelled anomaly no longer reported): **3**
-- Manufactured (finding on an invoice the labels call clean): **4**
-- Not auditable (labelled invoice whose extraction failed): **2**
-
-**Masked — `invoice_020.pdf` / `arithmetic_mismatch`**
-
-- Mechanism: `masked_value_error`
-- Rule(s): `arithmetic_total`
-- Detected on labelled fields: `True`
-- Driving fields that changed: `amount_including_tax`
-- Document self-consistent after extraction: `True` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `amount_excluding_tax` | `630.18` | `630.18` |
-| `tax_amount` | `75.91` | `75.91` |
-| `amount_including_tax` | `656.09` **←** | `706.09` |
-
-**Masked — `invoice_005.pdf` / `duplicate_number`**
-
-- Mechanism: `masked_partner_lost`
-- Rule(s): `dup_invoice_number`
-- Detected on labelled fields: `True`
-- Driving fields that changed: *(none)*
-- Document self-consistent after extraction: `None` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `invoice_number` | `24417000000019990001` | `24417000000019990001` |
-
-The rule is batch-scoped, so the other invoices sharing this ground-truth number matter too:
-
-| Partner invoice | audited | ground-truth number | extracted number | still shares the number |
-|---|---|---|---|---|
-| `invoice_004.pdf` | `False` | `24417000000019990001` | — | `False` |
-
-**Masked — `invoice_014.pdf` / `duplicate_number`**
-
-- Mechanism: `masked_partner_lost`
-- Rule(s): `dup_invoice_number`
-- Detected on labelled fields: `True`
-- Driving fields that changed: *(none)*
-- Document self-consistent after extraction: `None` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `invoice_number` | `24417000000029990002` | `24417000000029990002` |
-
-The rule is batch-scoped, so the other invoices sharing this ground-truth number matter too:
-
-| Partner invoice | audited | ground-truth number | extracted number | still shares the number |
-|---|---|---|---|---|
-| `invoice_015.pdf` | `False` | `24417000000029990002` | — | `False` |
-
-**Manufactured — `invoice_011.pdf` / `arithmetic_mismatch`**
-
-- Mechanism: `manufactured_value_error`
-- Rule(s): `arithmetic_total`
-- Detected on labelled fields: `False`
-- Driving fields that changed: `tax_amount`
-- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `amount_excluding_tax` | `14060.18` | `14060.18` |
-| `tax_amount` | `1301.9` **←** | `1291.9` |
-| `amount_including_tax` | `15362.08` | `15362.08` |
-
-Findings the engine did emit for this invoice:
-
-- `arithmetic_total` (`amount_including_tax`, ERROR): Invoice 24001134873471434558: arithmetic mismatch — 14060.18 + 1291.90 = 15352.08 but declared total is 15362.08 (diff 10.00).
-
-**Manufactured — `invoice_020.pdf` / `missing_seller_tax_id`**
-
-- Mechanism: `manufactured_value_error`
-- Rule(s): `party_info@seller.tax_id`
-- Detected on labelled fields: `False`
-- Driving fields that changed: `seller.tax_id`
-- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `seller.tax_id` | `913700008M0WREW9M3` **←** | `913700008MOWREW9M3` |
-
-Findings the engine did emit for this invoice:
-
-- `party_info` (`seller.tax_id`, WARNING): Invoice 24002004556238692221: seller tax id "913700008MOWREW9M3" fails the GB 32100-2015 checksum (possible OCR error or forged document).
-
-**Manufactured — `invoice_009.pdf` / `qr_mismatch`**
-
-- Mechanism: `manufactured_value_error`
-- Rule(s): `qr_crosscheck`
-- Detected on labelled fields: `False`
-- Driving fields that changed: `invoice_number`
-- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `qr_payload` | `01,32,,24000956981693406088,1147.93,20241217` | `01,32,,24000956981693406088,1147.93,20241217` |
-| `invoice_number` | `24000956981693406088` **←** | `24000956881693406088` |
-| `amount_including_tax` | `1147.93` | `1147.93` |
-| `issue_date` | `2024-12-17` | `2024-12-17` |
-
-Findings the engine did emit for this invoice:
-
-- `qr_crosscheck` (`invoice_number`, ERROR): Invoice 24000956881693406088: QR code encodes invoice number 24000956981693406088, which differs from the extracted number (possible tampering or OCR error).
-
-**Manufactured — `invoice_020.pdf` / `qr_mismatch`**
-
-- Mechanism: `manufactured_value_error`
-- Rule(s): `qr_crosscheck`
-- Detected on labelled fields: `False`
-- Driving fields that changed: `amount_including_tax`
-- Document self-consistent after extraction: `False` — `True` means the rule sees a coherent document and cannot fire
-
-| Driving field | labelled | extracted |
-|---|---|---|
-| `qr_payload` | `01,32,,24002004556238692221,656.09,20241108` | `01,32,,24002004556238692221,656.09,20241108` |
-| `invoice_number` | `24002004556238692221` | `24002004556238692221` |
-| `amount_including_tax` | `656.09` **←** | `706.09` |
-| `issue_date` | `2024-11-08` | `2024-11-08` |
-
-Findings the engine did emit for this invoice:
-
-- `qr_crosscheck` (`amount_including_tax`, ERROR): Invoice 24002004556238692221: QR code encodes total ¥656.09 but the extracted total is ¥706.09 (diff ¥50.00).
-
-**Unauditable — `invoice_004.pdf`** (classes: `duplicate_number`)
-
-Extraction failed, so the document never reached the audit engine and its labels can only be missed. These are counted as false negatives in the full-batch row above.
-
-**Unauditable — `invoice_015.pdf`** (classes: `duplicate_number`)
-
-Extraction failed, so the document never reached the audit engine and its labels can only be missed. These are counted as false negatives in the full-batch row above.
 
 ## Recommendations
 
@@ -626,15 +546,17 @@ actually moved these metrics are one to three orders of magnitude larger than
 the tolerance (¥50.00 and ¥2.00 against a ¥0.02 threshold), so widening it
 would change nothing except the ability to detect real anomalies.
 
-1. **Make the JSON failure mode survivable.** Every extraction failure in this
-   run was the same defect — `malformed JSON in model response: Expecting ','
-   delimiter` — from the primary model, on both attempts, after which the
-   fallback was rejected by the endpoint. A batch-level retry does not help
-   (the retry reproduces the defect); what helps is a *different* decode path:
-   a request-repair loop that feeds the malformed payload back for correction,
-   or constrained decoding, or splitting the prompt so fewer fields are emitted
-   per response. This is the single highest-value change in this list: it is
-   the difference between a document that is audited and one that is not.
+1. **Make the JSON failure mode survivable — done, and it was the highest-value
+   change in this list.** Every extraction failure in the pre-fix run was the
+   same defect (*malformed JSON in model response*), so the binding constraint
+   was the decode path, not the audit rules. Two repairs removed all 11
+   failures without touching a rule: closing an object the model forgot to
+   close, and refusing to let the model's repeated placeholder skeleton
+   overwrite a value it had already read correctly (the naive last-key-wins
+   parse turned a read `金额: 70.3` into `金额: 0`). See the before/after
+   section: micro F1 0.6757 → 0.8148, with the residual now pure OCR error.
+   What remains of this item is the *re-extraction queue* for responses that
+   are unusable even after repair — one call in this run.
 2. **Re-extract before auditing; never score an unread document as clean.**
    An extraction failure is not a clean invoice and not a suspicious one — it
    is an unanswered question. The pipeline already refuses to call such a batch
@@ -671,7 +593,11 @@ would change nothing except the ability to detect real anomalies.
    `low_confidence` rule exists but only warns. The honest move is to let it
    gate arithmetic and tax-rate findings: a rule that fires only because a
    low-confidence field was misread should downgrade to "needs review", which
-   is what a human reviewer would do anyway.
+   is what a human reviewer would do anyway. The repair work added a concrete
+   case for this: the prompt tells the model to write `0` for a field it cannot
+   read, so a *confidently unread* amount reaches the engine as a real zero and
+   reads as an arithmetic mismatch. Nothing in the engine currently
+   distinguishes "the invoice says 0" from "the model gave up on this field".
 7. **Publish recall over the whole batch, not just the auditable subset.**
    Dropping unreadable documents before scoring converts an extraction failure
    into an exclusion, which is how a pipeline's real recall gets flattered.
@@ -695,7 +621,17 @@ Read these before quoting any number above.
   fallback that could not help; a deployment with a functioning second model —
   or a repair loop around the decode — should extract more documents, which
   raises recall without touching a single audit rule. Do not read the recall
-  figures as the ceiling of the rules.
+  figures as the ceiling of the rules. (The pipeline now reports such a model as
+  *unavailable* rather than as an attempt that read the document, and accounts
+  for the refused call in the cost table, so this limitation is visible in the
+  artifact instead of inferred from an error string.)
+- **A repair can recover framing, not content.** The JSON repair closes a
+  bracket the model forgot and drops the unterminated tail it was cut off in; it
+  never supplies a value. A response that was truncated *before* it emitted the
+  fields cannot be recovered, and a document recovered from a partial payload
+  scores its missing fields as wrong (`compare_documents` counts an absent
+  prediction as a miss), so the repair can raise the number of auditable
+  documents but cannot flatter their accuracy.
 - **One endpoint, one account.** The runs went through the OpenAI-compatible
   endpoint configured in the environment. A different deployment, region or
   model snapshot can produce different extraction errors; the model ids are
