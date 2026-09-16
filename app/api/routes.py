@@ -85,13 +85,24 @@ def _batch_status(done: int, total: int) -> str:
 
 
 def _run_audit_and_graph(docs: list[InvoiceDocument], settings):
-    """Run the audit engine and graph builder over extracted documents."""
+    """Run the audit engine and graph builder over extracted documents.
+
+    Returns ``(findings, summary, graph, insights, rule_errors)`` — ``rule_errors``
+    names any rule that crashed, so a broken rule is visible in the batch
+    instead of quietly shrinking the findings list.
+    """
     engine = AuditEngine(settings)
     findings = engine.run(docs)
     findings_payload = [f.model_dump(mode="json") for f in findings]
     summary = engine.summarize(findings, documents_audited=len(docs))
     kg = GraphBuilder().build_with_insights(docs)
-    return findings_payload, summary, kg["graph"], kg["insights"]
+    return (
+        findings_payload,
+        summary,
+        kg["graph"],
+        kg["insights"],
+        [error.to_dict() for error in engine.errors],
+    )
 
 
 # -- health & metadata -------------------------------------------------------
@@ -215,7 +226,9 @@ async def retry_batch(batch_id: str, payload: _RetryRequest, request: Request):
         docs = [
             InvoiceDocument.model_validate(r["doc"]) for r in results if r and r.get("doc")
         ]
-        findings, summary, graph, insights = _run_audit_and_graph(docs, settings)
+        findings, summary, graph, insights, rule_errors = _run_audit_and_graph(
+            docs, settings
+        )
         counts = _summarize_results(results)
         request.app.state.store.update(
             batch_id,
@@ -224,6 +237,7 @@ async def retry_batch(batch_id: str, payload: _RetryRequest, request: Request):
             audit_summary=summary,
             graph=graph,
             insights=insights,
+            rule_errors=rule_errors,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
         )
     except Exception as exc:
@@ -243,17 +257,20 @@ async def get_audit(batch_id: str, request: Request):
 
     errors = batch.get("errors") or []
     failed = batch.get("failed", 0)
+    rule_errors = batch.get("rule_errors") or []
     audited = (batch.get("audit_summary") or {}).get("documents_audited", 0)
     total = batch["total"]
     # "0 findings" only means "no anomalies" when every document actually made
-    # it through extraction and the whole batch was audited. Otherwise the
-    # audit is inconclusive and the caller must be told so explicitly rather
-    # than being handed an empty list that reads as an all-clear.
+    # it through extraction, the whole batch was audited and every rule ran to
+    # completion. Otherwise the audit is inconclusive and the caller must be
+    # told so explicitly rather than being handed an empty list that reads as
+    # an all-clear.
     conclusive = (
         batch["status"] == "done"
         and total > 0
         and failed == 0
         and not errors
+        and not rule_errors
         and audited == total
     )
     return {
@@ -264,6 +281,7 @@ async def get_audit(batch_id: str, request: Request):
         "done": batch["done"],
         "failed": failed,
         "errors": errors,
+        "rule_errors": rule_errors,
         "audited_documents": audited,
         "audit_conclusive": conclusive,
     }
@@ -346,7 +364,7 @@ async def load_demo(request: Request, count: Optional[int] = Body(default=10, em
     docs = [
         InvoiceDocument.model_validate(r["doc"]) for r in results if r.get("doc")
     ]
-    findings, summary, graph, insights = _run_audit_and_graph(
+    findings, summary, graph, insights, rule_errors = _run_audit_and_graph(
         docs, request.app.state.settings
     )
     counts = _summarize_results(results)
@@ -358,6 +376,7 @@ async def load_demo(request: Request, count: Optional[int] = Body(default=10, em
         audit_summary=summary,
         graph=graph,
         insights=insights,
+        rule_errors=rule_errors,
         completed_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
         **counts,
     )
@@ -424,7 +443,9 @@ async def _run_batch(app, batch_id: str) -> None:
             for r in results
             if r and r.get("doc")
         ]
-        findings, summary, graph, insights = _run_audit_and_graph(docs, settings)
+        findings, summary, graph, insights, rule_errors = _run_audit_and_graph(
+            docs, settings
+        )
         counts = _summarize_results(results)
         store.update(
             batch_id,
@@ -433,6 +454,7 @@ async def _run_batch(app, batch_id: str) -> None:
             audit_summary=summary,
             graph=graph,
             insights=insights,
+            rule_errors=rule_errors,
             completed_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
         )
     except Exception as exc:  # keep the batch observable on failure

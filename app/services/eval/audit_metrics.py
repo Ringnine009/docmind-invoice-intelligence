@@ -402,7 +402,12 @@ def evaluate_ground_truth_audit(
         gt_files, findings, names=names, mapping=mapping
     )
     report["engine"] = getattr(engine, "name", type(engine).__name__)
-    report["rule_errors"] = list(getattr(engine, "errors", []) or [])
+    # A crashed rule makes the run non-conclusive: surface it (JSON-safe) so a
+    # silently shrinking findings list can never be read as a better score.
+    report["rule_errors"] = [
+        error.to_dict() if hasattr(error, "to_dict") else dict(error)
+        for error in (getattr(engine, "errors", None) or [])
+    ]
     return report
 
 

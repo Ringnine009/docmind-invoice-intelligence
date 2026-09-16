@@ -36,6 +36,9 @@ class BatchStore:
             "results": [None] * len(files),
             "findings": [],
             "audit_summary": None,
+            # [{"rule_id": str, "rule_name": str, "error": str}] — rules that
+            # crashed during the audit (isolated, never silently dropped).
+            "rule_errors": [],
             "graph": None,
             "insights": {},
             "errors": [],  # [{"filename": str | None, "error": str}]

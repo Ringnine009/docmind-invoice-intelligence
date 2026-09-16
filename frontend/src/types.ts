@@ -86,6 +86,13 @@ export interface BatchError {
   error: string;
 }
 
+/** A rule that crashed during the audit. Isolated, never silently dropped. */
+export interface RuleError {
+  rule_id: string;
+  rule_name: string;
+  error: string;
+}
+
 export interface AuditSummary {
   total: number;
   by_severity: Record<Severity, number>;
@@ -108,6 +115,7 @@ export interface Batch {
   graph: GraphData | null;
   insights: Record<string, unknown>;
   errors: BatchError[];
+  rule_errors: RuleError[];
   created_at: string;
   completed_at: string | null;
 }
@@ -121,11 +129,12 @@ export interface AuditReport {
   done: number;
   failed: number;
   errors: BatchError[];
+  rule_errors: RuleError[];
   audited_documents: number;
   /**
    * False when the batch did not fully audit — some documents failed to
-   * extract. An empty `findings` list with `audit_conclusive: false` means
-   * "we could not tell", never "this batch is clean".
+   * extract, or a rule crashed. An empty `findings` list with
+   * `audit_conclusive: false` means "we could not tell", never "clean".
    */
   audit_conclusive: boolean;
 }
