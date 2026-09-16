@@ -715,6 +715,14 @@ class TestRenderE2EMarkdown:
         assert "not separately metered" in md
         assert "Extraction failures" in md  # the invoice-level count IS measured
 
+    def test_limitations_disclose_a_non_working_fallback_model(self):
+        """The extraction-failure rate is only interpretable if the reader knows
+        whether the fallback model was available to absorb primary failures."""
+        md = render_e2e_markdown(self._report())
+        limitations = md.split("## Honest limitations", 1)[1].lower()
+        assert "fallback" in limitations
+        assert "quota" in limitations or "403" in limitations
+
     def test_surfaces_unattributed_findings(self):
         """A finding that cannot be resolved to an invoice is never credited.
 

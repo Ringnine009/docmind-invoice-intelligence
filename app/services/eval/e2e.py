@@ -1443,6 +1443,14 @@ Read these before quoting any number above.
 - **Not a production distribution.** Real batches carry skewed tax rates,
   red-ink and voided invoices, multi-page scans and phone photos. Nothing here
   measures those, so real-world precision should be expected to be worse.
+- **No working fallback model.** The configured fallback returned
+  `403 insufficient_quota` throughout these runs, so every primary-model
+  failure became a hard extraction failure rather than being absorbed. The
+  extraction-failure rate above therefore describes the primary model *plus* a
+  fallback that could not help; a deployment with a functioning second model —
+  or a repair loop around the decode — should extract more documents, which
+  raises recall without touching a single audit rule. Do not read the recall
+  figures as the ceiling of the rules.
 - **One endpoint, one account.** The runs went through the OpenAI-compatible
   endpoint configured in the environment. A different deployment, region or
   model snapshot can produce different extraction errors; the model ids are
