@@ -246,10 +246,14 @@ export default function App() {
                     {tf("retry.failed", { n: failed })}
                   </button>
                 )}
-                <a className="btn small" href={`/api/batches/${batch.id}/export?format=csv`}>
+                {/* `download` is a safety net, not the mechanism: the endpoint sets
+                    Content-Disposition, which is what actually saves the file. Without
+                    the attribute a response lacking that header (the JSON branch did)
+                    navigates the tab to the raw payload and the app disappears. */}
+                <a className="btn small" href={`/api/batches/${batch.id}/export?format=csv`} download>
                   {t("export.csv")}
                 </a>
-                <a className="btn small ghost" href={`/api/batches/${batch.id}/export?format=json`}>
+                <a className="btn small ghost" href={`/api/batches/${batch.id}/export?format=json`} download>
                   {t("export.json")}
                 </a>
               </div>
