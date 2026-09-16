@@ -1,7 +1,9 @@
 """API integration tests using the FastAPI TestClient (mock extractor)."""
 
+import csv
 import io
 import json
+import re
 import time
 from pathlib import Path
 
@@ -197,6 +199,102 @@ class TestExport:
         batch_id = self._load_batch(client)
         r = client.get(f"/api/batches/{batch_id}/export", params={"format": "xml"})
         assert r.status_code == 400
+
+
+class TestExportDownloadContract:
+    """Both export buttons are plain ``<a href>`` links, so the browser only
+    saves a file when the response carries ``Content-Disposition: attachment``.
+
+    The JSON branch used to return a bare list: FastAPI serialised it inline
+    (no ``Content-Disposition``), so "Export JSON" produced no download at all
+    while the CSV button next to it downloaded normally. Measured live before
+    the fix: ``curl -D -`` showed no ``content-disposition`` for
+    ``format=json``, and Playwright saw no ``download`` event.
+    """
+
+    def _load_batch(self, client, count: int = 3) -> str:
+        r = client.post("/api/demo/load", json={"count": count})
+        return r.json()["batch_id"]
+
+    def test_export_json_is_an_attachment_named_after_the_batch(self, client):
+        batch_id = self._load_batch(client)
+        r = client.get(f"/api/batches/{batch_id}/export", params={"format": "json"})
+        assert r.status_code == 200
+        disposition = r.headers.get("content-disposition")
+        assert disposition is not None, "a bare JSON body is not a download"
+        assert disposition.startswith("attachment")
+        assert f'docmind_batch_{batch_id}.json' in disposition
+
+    def test_export_json_content_type_is_json(self, client):
+        batch_id = self._load_batch(client)
+        r = client.get(f"/api/batches/{batch_id}/export", params={"format": "json"})
+        assert r.headers["content-type"].startswith("application/json")
+
+    def test_export_json_body_is_valid_json(self, client):
+        """The download must stay a real JSON document, not a stringified one."""
+        batch_id = self._load_batch(client, count=3)
+        r = client.get(f"/api/batches/{batch_id}/export", params={"format": "json"})
+        payload = json.loads(r.content.decode("utf-8"))
+        assert isinstance(payload, list)
+        assert len(payload) == 3
+        assert payload[0]["filename"].endswith(".pdf")
+        assert payload[0]["invoice_number"]
+
+    def test_export_json_keeps_chinese_readable(self, client):
+        """``ensure_ascii=False``: UTF-8 bytes, never ``\\uXXXX`` escapes."""
+        batch_id = self._load_batch(client)
+        r = client.get(f"/api/batches/{batch_id}/export", params={"format": "json"})
+        raw = r.content.decode("utf-8")
+        assert "\\u" not in raw
+        assert any("\u4e00" <= ch <= "\u9fff" for ch in raw), "Chinese names must survive"
+        assert json.loads(raw)[0]["buyer"]["name"]
+
+
+class TestExportCsvFilenameColumn:
+    """Regression: the CSV ``filename`` column was empty for every row.
+
+    ``_EXPORT_COLUMNS`` maps that column to the path ``filename`` and the
+    writer resolved it *inside* the extracted document (``r["doc"]``) — but the
+    file name lives on the result row, not in the document, so every exported
+    row carried ``""``. Measured live against the running server before the
+    fix: 30/30 rows empty (the audit record was right, not stale).
+    """
+
+    FILENAME_RE = re.compile(r"invoice_\d+\.pdf")
+
+    def _load_batch(self, client, count: int = 30) -> str:
+        r = client.post("/api/demo/load", json={"count": count})
+        return r.json()["batch_id"]
+
+    def _csv_rows(self, client, batch_id: str) -> list[dict]:
+        r = client.get(f"/api/batches/{batch_id}/export", params={"format": "csv"})
+        assert r.status_code == 200
+        return list(csv.DictReader(io.StringIO(r.text)))
+
+    def test_csv_filename_column_is_filled_for_every_row(self, client):
+        rows = self._csv_rows(client, self._load_batch(client, count=30))
+        assert len(rows) == 30
+        for index, row in enumerate(rows):
+            assert self.FILENAME_RE.fullmatch(row["filename"] or ""), (
+                f"row {index} exported filename={row['filename']!r}"
+            )
+
+    def test_csv_filename_matches_the_batch_result(self, client):
+        batch_id = self._load_batch(client, count=5)
+        batch = client.get(f"/api/batches/{batch_id}").json()
+        rows = self._csv_rows(client, batch_id)
+        assert [row["filename"] for row in rows] == [
+            r["filename"] for r in batch["results"] if r and r.get("doc")
+        ]
+
+    def test_csv_and_json_exports_agree_on_filenames(self, client):
+        batch_id = self._load_batch(client, count=5)
+        csv_rows = self._csv_rows(client, batch_id)
+        r = client.get(f"/api/batches/{batch_id}/export", params={"format": "json"})
+        json_rows = json.loads(r.content.decode("utf-8"))
+        assert [row["filename"] for row in csv_rows] == [
+            row["filename"] for row in json_rows
+        ]
 
 
 class TestBatchSource:

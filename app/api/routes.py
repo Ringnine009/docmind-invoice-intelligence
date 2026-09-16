@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import csv
 import io
+import json
 import time
 from pathlib import Path, PurePath
 from typing import Optional
@@ -304,16 +305,28 @@ async def export_batch(batch_id: str, request: Request, format: str = "json"):
     rows = [r for r in batch["results"] if r and r.get("doc")]
 
     if format == "json":
-        return [{"filename": r["filename"], **r["doc"]} for r in rows]
+        payload = [{"filename": r["filename"], **r["doc"]} for r in rows]
+        filename = f"docmind_batch_{batch_id}.json"
+        # The dashboard renders both export buttons as plain `<a href>` links,
+        # so a download only happens when the response carries
+        # `Content-Disposition`. Returning the bare list made FastAPI serialise
+        # it inline with no such header and "Export JSON" downloaded nothing.
+        # `ensure_ascii=False` keeps Chinese names readable instead of \uXXXX.
+        return Response(
+            content=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
     writer.writerow([col for col, _ in _EXPORT_COLUMNS])
     for r in rows:
-        doc = r["doc"]
-        writer.writerow(
-            [_get_doc_value(doc, path) if doc else "" for _, path in _EXPORT_COLUMNS]
-        )
+        # `filename` lives on the result row, not inside the extracted
+        # document, so resolving every column against `r["doc"]` left the
+        # filename column empty. Merge it in exactly like the JSON branch.
+        record = {"filename": r["filename"], **r["doc"]}
+        writer.writerow([_get_doc_value(record, path) for _, path in _EXPORT_COLUMNS])
     filename = f"docmind_batch_{batch_id}.csv"
     return Response(
         content=buffer.getvalue(),
