@@ -151,7 +151,7 @@ class TestBrokenRuleSurfacesThroughTheApi:
         assert batch["status"] == "done"
         by_rule = {f["rule_id"] for f in batch["findings"]}
         assert "arithmetic_total" not in by_rule
-        # the other six rules still did their job on the same batch
+        # the other rules that fire on this batch still did their job
         assert {"dup_invoice_number", "tax_rate", "party_info",
                 "invoice_date", "qr_crosscheck"} <= by_rule
 
