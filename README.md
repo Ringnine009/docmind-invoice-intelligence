@@ -187,6 +187,22 @@ Latest real-API results are summarized in [docs/benchmark.md](docs/benchmark.md)
 The ground truth is regenerated deterministically by the synthetic generator,
 so benchmark runs are reproducible.
 
+### Audit evaluation (decisions, not fields)
+
+Field accuracy says how well an invoice was *read*; it says nothing about
+whether the audit engine *flagged* the right invoices. That is measured
+separately against the anomaly labels already in the ground truth:
+
+```bash
+python scripts/run_audit_eval.py     # offline, no API key, no cost
+```
+
+Each of the 7 injected anomaly classes is mapped to the responsible rule(s);
+per-class and per-rule precision/recall and the overall numbers are written to
+[docs/audit-eval.md](docs/audit-eval.md). A class present in the ground truth
+but absent from the mapping — or a mapping entry naming an unregistered rule
+id — raises instead of quietly scoring 0.
+
 ## Tests
 
 ```bash
