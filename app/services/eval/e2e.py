@@ -234,6 +234,11 @@ class UsageMeter:
                 usage.get("prompt_tokens", 0),
                 usage.get("completion_tokens", 0),
                 total_tokens=usage.get("total_tokens"),
+                # A refused call (no quota, bad key) bills nothing but must not
+                # vanish from the failure totals: a dead fallback model is a
+                # measurement, not an absence of one.
+                ok=bool(usage.get("ok", True)),
+                error=usage.get("error"),
             )
 
         return _record
@@ -337,6 +342,48 @@ BASELINE_FIELD_ACCURACY_SOURCE = (
     "benchmark/results/real_qwen-vl-plus.json — run_benchmark.py --extractor "
     "dashscope, 30 invoices, 3 extraction failures, same batch"
 )
+
+#: The end-to-end run published *before* the JSON-repair work landed. Recorded
+#: here for the same reason as :data:`BASELINE_FIELD_ACCURACY`: the raw artifact
+#: is untracked regenerated output, so a number that has to survive belongs in
+#: the source that prints it. Every value below was read out of that artifact
+#: (still on disk at ``benchmark/results/e2e_eval_before_json_fix.json``).
+PRE_FIX_BASELINE: dict[str, Any] = {
+    "label": "before the JSON-repair fix",
+    "generated_at": "2026-09-16T13:47:02",
+    "source": (
+        "benchmark/results/e2e_eval_before_json_fix.json — "
+        "scripts/run_e2e_eval.py --rounds 3, same 30 invoices, "
+        "commit 9eb6ef1 (the run published as the previous version of this page)"
+    ),
+    "attempts": 90,
+    "extracted": 79,
+    "extraction_failures": 11,
+    "comparison": {
+        "extracted_subset": {
+            "precision": 0.6579,
+            "recall": 0.8065,
+            "f1": 0.7247,
+            "tp": 25,
+            "fp": 13,
+            "fn": 6,
+        },
+        "full_batch": {
+            "precision": 0.6579,
+            "recall": 0.6944,
+            "f1": 0.6757,
+            "tp": 25,
+            "fp": 13,
+            "fn": 11,
+        },
+    },
+    "field_accuracy": 0.9421,
+    "field_accuracy_allin": 0.8272,
+    "calls": 117,
+    "cost_cny": 0.360523,
+    "mean_invoice_seconds": 16.69,
+    "invoices_per_minute": 11.3,
+}
 
 
 def _stats(values: Sequence[float]) -> dict:
@@ -922,15 +969,17 @@ actually moved these metrics are one to three orders of magnitude larger than
 the tolerance (¥50.00 and ¥2.00 against a ¥0.02 threshold), so widening it
 would change nothing except the ability to detect real anomalies.
 
-1. **Make the JSON failure mode survivable.** Every extraction failure in this
-   run was the same defect — `malformed JSON in model response: Expecting ','
-   delimiter` — from the primary model, on both attempts, after which the
-   fallback was rejected by the endpoint. A batch-level retry does not help
-   (the retry reproduces the defect); what helps is a *different* decode path:
-   a request-repair loop that feeds the malformed payload back for correction,
-   or constrained decoding, or splitting the prompt so fewer fields are emitted
-   per response. This is the single highest-value change in this list: it is
-   the difference between a document that is audited and one that is not.
+1. **Make the JSON failure mode survivable — done, and it was the highest-value
+   change in this list.** Every extraction failure in the pre-fix run was the
+   same defect (*malformed JSON in model response*), so the binding constraint
+   was the decode path, not the audit rules. Two repairs removed all 11
+   failures without touching a rule: closing an object the model forgot to
+   close, and refusing to let the model's repeated placeholder skeleton
+   overwrite a value it had already read correctly (the naive last-key-wins
+   parse turned a read `金额: 70.3` into `金额: 0`). See the before/after
+   section: micro F1 0.6757 → 0.8148, with the residual now pure OCR error.
+   What remains of this item is the *re-extraction queue* for responses that
+   are unusable even after repair — one call in this run.
 2. **Re-extract before auditing; never score an unread document as clean.**
    An extraction failure is not a clean invoice and not a suspicious one — it
    is an unanswered question. The pipeline already refuses to call such a batch
@@ -967,7 +1016,11 @@ would change nothing except the ability to detect real anomalies.
    `low_confidence` rule exists but only warns. The honest move is to let it
    gate arithmetic and tax-rate findings: a rule that fires only because a
    low-confidence field was misread should downgrade to "needs review", which
-   is what a human reviewer would do anyway.
+   is what a human reviewer would do anyway. The repair work added a concrete
+   case for this: the prompt tells the model to write `0` for a field it cannot
+   read, so a *confidently unread* amount reaches the engine as a real zero and
+   reads as an arithmetic mismatch. Nothing in the engine currently
+   distinguishes "the invoice says 0" from "the model gave up on this field".
 7. **Publish recall over the whole batch, not just the auditable subset.**
    Dropping unreadable documents before scoring converts an extraction failure
    into an exclusion, which is how a pipeline's real recall gets flattered.
@@ -1018,8 +1071,10 @@ def render_e2e_markdown(report: Mapping[str, Any]) -> str:
         "(fully fabricated — see [data-compliance.md](data-compliance.md))",
         f"- **Extractor**: `{report.get('extractor')}` "
         + (
-            "via the project's own `DashScopeExtractor` — prompt, DPI, "
-            "temperature and JSON repair unchanged"
+            "via the project's own `DashScopeExtractor` — prompt, DPI and "
+            "first-attempt temperature unchanged; a response that could not be "
+            "turned into an invoice gets one corrective re-read (see the "
+            "before/after section)"
             if report.get("extractor") == "dashscope"
             else "(harness sanity run: no API calls, no cost — the numbers below "
             "verify the harness, not the model)"
@@ -1108,6 +1163,9 @@ def render_e2e_markdown(report: Mapping[str, Any]) -> str:
             "need a human or a second model pass",
             "",
         ]
+
+    if report.get("extractor") == "dashscope":
+        lines += [_before_after(report), ""]
 
     lines += [
         "## Per-round raw results",
@@ -1429,6 +1487,194 @@ def _micro_line(audit: Mapping[str, Any] | None) -> str:
     )
 
 
+def _pct(value: float | None) -> str:
+    return "—" if value is None else f"{value * 100:.2f}%"
+
+
+def _delta(
+    before: float | None, after: float | None, *, digits: int = 4, points: bool = False
+) -> str:
+    """Signed change, in percentage points for rates and units otherwise."""
+    if before is None or after is None:
+        return "—"
+    if isinstance(before, int) and isinstance(after, int):
+        return f"{after - before:+d}"
+    diff = after - before
+    return f"{diff * 100:+.2f} pp" if points else f"{diff:+.{digits}f}"
+
+
+def _before_after(report: Mapping[str, Any]) -> str:
+    """The change against the run published before the JSON repair landed.
+
+    A before/after claim that cannot be checked is marketing, so both sides of
+    every row come from a recorded artifact: the *before* numbers from
+    :data:`PRE_FIX_BASELINE` (raw artifact untracked, path recorded there) and
+    the *after* numbers from the report being rendered.
+    """
+    base = PRE_FIX_BASELINE
+    totals = report.get("totals") or {}
+    comparison = report.get("comparison") or {}
+    summary = report.get("summary") or {}
+    cost = report.get("cost") or {}
+    latency = report.get("latency") or {}
+
+    attempts = totals.get("attempts")
+    failures = totals.get("extraction_failures")
+    after_rate = (failures / attempts) if attempts else None
+    base_rate = base["extraction_failures"] / base["attempts"]
+    after_subset = comparison.get("extracted_subset") or {}
+    after_full = comparison.get("full_batch") or {}
+    base_subset = base["comparison"]["extracted_subset"]
+    base_full = base["comparison"]["full_batch"]
+    after_acc = ((summary.get("field_accuracy") or {}).get("overall") or {}).get("mean")
+    after_allin = ((summary.get("field_accuracy_allin") or {}).get("overall") or {}).get(
+        "mean"
+    )
+
+    def read(before: int, total: int) -> str:
+        return f"{before}/{total}" if total else "—"
+
+    rows = [
+        (
+            "**Extraction failure rate**",
+            f"**{_pct(base_rate)}** ({read(base['extraction_failures'], base['attempts'])})",
+            f"**{_pct(after_rate)}** ({read(failures or 0, attempts or 0)})",
+            f"{_delta(base_rate, after_rate, points=True)}",
+        ),
+        (
+            "Invoices read",
+            read(base["extracted"], base["attempts"]),
+            read(totals.get("extracted") or 0, attempts or 0),
+            _delta(base["extracted"], totals.get("extracted")),
+        ),
+        (
+            "micro F1 — auditable subset",
+            _fmt(base_subset["f1"]),
+            _fmt(after_subset.get("f1")),
+            _delta(base_subset["f1"], after_subset.get("f1")),
+        ),
+        (
+            "micro F1 — failures counted as missed",
+            _fmt(base_full["f1"]),
+            _fmt(after_full.get("f1")),
+            _delta(base_full["f1"], after_full.get("f1")),
+        ),
+        (
+            "micro precision — failures counted as missed",
+            _fmt(base_full["precision"]),
+            _fmt(after_full.get("precision")),
+            _delta(base_full["precision"], after_full.get("precision")),
+        ),
+        (
+            "micro recall — failures counted as missed",
+            _fmt(base_full["recall"]),
+            _fmt(after_full.get("recall")),
+            _delta(base_full["recall"], after_full.get("recall")),
+        ),
+        (
+            "Field accuracy — auditable subset (mean)",
+            _fmt(base["field_accuracy"]),
+            _fmt(after_acc),
+            _delta(base["field_accuracy"], after_acc),
+        ),
+        (
+            "Field accuracy — failures as empty documents (mean)",
+            _fmt(base["field_accuracy_allin"]),
+            _fmt(after_allin),
+            _delta(base["field_accuracy_allin"], after_allin),
+        ),
+        (
+            "API calls",
+            str(base["calls"]),
+            str(cost.get("n_calls", "—")),
+            _delta(base["calls"], cost.get("n_calls"), digits=0),
+        ),
+        (
+            "Cost, list price (¥)",
+            _fmt(base["cost_cny"], 4),
+            _fmt(cost.get("total_cost_cny"), 4),
+            _delta(base["cost_cny"], cost.get("total_cost_cny")),
+        ),
+        (
+            "Mean invoice latency (s)",
+            _fmt(base["mean_invoice_seconds"], 2),
+            _fmt(latency.get("mean_invoice_seconds"), 2),
+            _delta(base["mean_invoice_seconds"], latency.get("mean_invoice_seconds"), digits=2),
+        ),
+    ]
+
+    lines = [
+        "## Before / after the JSON-repair fix",
+        "",
+        "The previous version of this page measured the extraction-failure rate as "
+        f"**{_pct(base_rate)}** ({base['extraction_failures']}/"
+        f"{base['attempts']} attempts) and every single failure had the same cause. "
+        "The repair work targets that cause; the numbers below say whether it worked, "
+        "and the *before* column is a recorded run rather than a recollection.",
+        "",
+        f"- Baseline: `{base['source']}`",
+        f"  (generated {base['generated_at']})",
+        "",
+        "| Metric | before | after | change |",
+        "|---|---|---|---|",
+    ]
+    lines += [f"| {name} | {before} | {after} | {change} |" for name, before, after, change in rows]
+    lines.append("")
+    if after_acc is not None and after_allin is not None:
+        lines += [
+            "Two of those rows have to be read together. *Field accuracy — "
+            "auditable subset* barely moves, but its population is not the same "
+            "one: the baseline excluded the 3–4 documents per round it could not "
+            "read, while this run excludes none — so the previously unreadable "
+            "documents scored at roughly the batch average. The comparable row is "
+            "the one below it, the whole batch with failures counted as misses, "
+            f"which moved **{_delta(base['field_accuracy_allin'], after_allin, points=True)}**.",
+            "",
+        ]
+
+    repairs = totals.get("json_repairs") or {}
+    if repairs:
+        lines += [
+            "Responses the repair ladder recovered (recorded per document, so the "
+            "recovery path is measured rather than assumed): "
+            + ", ".join(f"`{name}` × {count}" for name, count in sorted(repairs.items())),
+            "",
+        ]
+    else:
+        lines += [
+            "Responses the repair ladder recovered: **none** — no document needed a "
+            "framing repair in this run.",
+            "",
+        ]
+    if totals.get("fallback_reads"):
+        lines += [
+            f"Documents the fallback model had to read: **{totals['fallback_reads']}**",
+            "",
+        ]
+
+    residual = [
+        failure.get("file")
+        for rnd in report.get("rounds") or []
+        for failure in rnd.get("extraction_failures") or []
+    ]
+    if residual:
+        lines += [
+            f"Residual extraction failures in this run (the *after* column): "
+            f"**{len(residual)}** — "
+            + ", ".join(f"`{name}`" for name in residual)
+            + ". They are counted as misses in the full-batch row above, not "
+            "excluded; the per-round tables below name the reason for each.",
+            "",
+        ]
+    else:
+        lines += [
+            "Residual extraction failures in this run (the *after* column): "
+            "**none** — every attempt in this run produced an auditable document.",
+            "",
+        ]
+    return "\n".join(lines)
+
+
 def _limitations(report: Mapping[str, Any]) -> str:
     n_rounds = report.get("rounds_completed")
     return f"""\
@@ -1450,7 +1696,17 @@ Read these before quoting any number above.
   fallback that could not help; a deployment with a functioning second model —
   or a repair loop around the decode — should extract more documents, which
   raises recall without touching a single audit rule. Do not read the recall
-  figures as the ceiling of the rules.
+  figures as the ceiling of the rules. (The pipeline now reports such a model as
+  *unavailable* rather than as an attempt that read the document, and accounts
+  for the refused call in the cost table, so this limitation is visible in the
+  artifact instead of inferred from an error string.)
+- **A repair can recover framing, not content.** The JSON repair closes a
+  bracket the model forgot and drops the unterminated tail it was cut off in; it
+  never supplies a value. A response that was truncated *before* it emitted the
+  fields cannot be recovered, and a document recovered from a partial payload
+  scores its missing fields as wrong (`compare_documents` counts an absent
+  prediction as a miss), so the repair can raise the number of auditable
+  documents but cannot flatter their accuracy.
 - **One endpoint, one account.** The runs went through the OpenAI-compatible
   endpoint configured in the environment. A different deployment, region or
   model snapshot can produce different extraction errors; the model ids are

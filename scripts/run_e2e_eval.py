@@ -171,6 +171,20 @@ class Runner:
         pred_docs = [results[n]["doc"] for n in ok_names]
         gt_docs = [self.gt_docs[n] for n in ok_names]
 
+        # How the documents were read, not just whether they were: a response
+        # that needed the JSON framing repaired, and a document that only the
+        # fallback model could read. Both are recorded by the extractor on the
+        # document itself, so they are measured rather than inferred from the
+        # absence of failures.
+        json_repairs: dict[str, int] = {}
+        fallback_reads: list[str] = []
+        for name, pred_doc in zip(ok_names, pred_docs):
+            strategy = (pred_doc.corrections or {}).get("json")
+            if strategy:
+                json_repairs[strategy] = json_repairs.get(strategy, 0) + 1
+            if (pred_doc.corrections or {}).get("vision_model"):
+                fallback_reads.append(name)
+
         # -- field-level scoring -------------------------------------------
         per_invoice = []
         correct = compared = 0
@@ -278,6 +292,8 @@ class Runner:
             "attempted": len(self.names),
             "extracted_names": ok_names,
             "extraction_failures": failures,
+            "json_repairs": json_repairs,
+            "fallback_reads": fallback_reads,
             "not_attempted": missing,
             "field_report": field_report,
             "field_report_allin": field_report_allin,
@@ -486,8 +502,21 @@ class Runner:
                 "extracted": extracted,
                 "extraction_failures": failures,
                 "findings_emitted": sum(r["findings_total"] for r in rounds),
+                "json_repairs": _merge_counts(r.get("json_repairs") for r in rounds),
+                "fallback_reads": sum(
+                    len(r.get("fallback_reads") or []) for r in rounds
+                ),
             },
         }
+
+
+def _merge_counts(counts) -> dict:
+    """Sum per-round ``{key: count}`` tallies into one dict."""
+    merged: dict = {}
+    for block in counts:
+        for key, value in (block or {}).items():
+            merged[key] = merged.get(key, 0) + value
+    return dict(sorted(merged.items()))
 
 
 def _prf(tp: int, fp: int, fn: int) -> dict:
@@ -567,10 +596,22 @@ def main() -> int:
             f"({rnd['field_report']['overall']['correct']}/"
             f"{rnd['field_report']['overall']['compared']}), "
             f"failures={len(rnd['extraction_failures'])}, "
+            f"json_repairs={sum((rnd.get('json_repairs') or {}).values())}, "
+            f"fallback_reads={len(rnd.get('fallback_reads') or [])}, "
             f"masked={len(rnd['divergences']['masked'])}, "
             f"manufactured={len(rnd['divergences']['manufactured'])}, "
             f"unauditable={len(rnd['divergences']['unauditable'])}, "
             f"elapsed={rnd['elapsed_s']}s, cost=¥{rnd['cost_cny']}"
+        )
+
+    totals = report["totals"]
+    if totals.get("attempts"):
+        print(
+            f"\nextraction: {totals['extracted']}/{totals['attempts']} read "
+            f"({totals['extraction_failures']} failed, "
+            f"{totals['extraction_failures'] / totals['attempts'] * 100:.2f}%), "
+            f"JSON framing repaired on {sum(totals.get('json_repairs', {}).values())}, "
+            f"fallback reads {totals.get('fallback_reads', 0)}"
         )
 
     cost = report["cost"]
