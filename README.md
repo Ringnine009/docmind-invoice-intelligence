@@ -384,3 +384,22 @@ FastAPI 分层架构，密钥全部走环境变量（pydantic-settings），使�
 
 后端 `uvicorn app.main:app` 一键启动（自动托管前端构建产物），离线演示
 与全部 309 测试均使用 mock 抽取器，不消耗 API 额度。
+
+---
+
+## Full measured results (the long-form record kept off the site)
+
+The portfolio page shows one conclusion per line, each carrying the numbers and
+the caveat that qualifies it. The paragraphs below are the full-length version
+those lines were compressed from — the same figures, with the reasoning and the
+measurement history that the page deliberately no longer spells out. Nothing here
+is new, and no number on the page differs from this record.
+
+1. Real-API benchmark, 30 synthetic invoices (qwen-vl-plus), re-measured after the extractor fix: 94.1% field-level accuracy (up from 82.5%) — date, buyer name and seller name 100%, invoice number and tax amount 96.7%, amount incl. tax 93.3%, buyer tax ID 83.3%, seller tax ID 75.9%. Every wrong field is listed individually rather than averaged away.
+2. Field accuracy says an invoice was read correctly; it says nothing about whether the audit flagged the right ones — so that is measured separately. Across the 7 injected anomaly classes the engine scores micro P = R = F1 = 1.000 (12/12 anomalies, 0 false positives) when it is fed the labelled field values. Stated plainly: this is a detector-agrees-with-generator result, because the synthetic generator writes the labels and applies exactly the perturbation each rule looks for.
+3. And that 1.000 does not survive real OCR — so it was measured, and then fixed. Feeding the engine what the vision model actually returned first dropped it to micro F1 0.676; after repairing the extractor (below) the same measurement gives P 0.733 / R 0.917 / F1 0.815, with the run-to-run spread collapsing from 0.16 to zero.
+4. The highest-value defect the end-to-end run exposed was not accuracy but survival: 12.2% of extraction attempts failed outright, every one of them the same "malformed JSON in model response". A repair layer on the decode side now survives that framing — 41 of 90 responses needed repair, and the failure rate went 12.2% → 0% (90/90 read). Field accuracy on the whole batch went 0.8272 → 0.9411 (+11.4 pp, 3-round mean, range 0.9398–0.9436), which also removed the biggest source of variance: which invoices happened to fail.
+5. The first version of that fix was wrong, and re-measuring caught it: it zeroed the failure rate but silently produced 18 fields where the model reported confidence 1.0 on a value of 0.0. Capturing the raw responses showed why — the model repeats a line-item template as a top-level key after the correct document, and JSON last-wins let the placeholder overwrite a correctly read value. Switched to first-occurrence-wins, re-ran, and that is where the numbers above come from; the superseded artifact is kept in the repository rather than deleted.
+6. Repair recovers framing, never invents values: an internally contradictory payload is rejected outright, and a document with no invoice fields at all still counts as a failure — so the failure rate cannot be improved by hiding failures as empty documents. What remains is OCR in both directions, visible in a single invoice: the model wrote 706.09 for an amount that is really 656.09, which makes the document internally self-consistent so the injected arithmetic anomaly goes silent — and that same wrong number disagrees with the QR code decoded from the pixels, manufacturing a finding on a document that was not anomalous in that way.
+7. Repair also cannot be trusted on faith, so the fallback is flagged as unverified: the configured secondary model returns 403 in this environment and was never actually called, and the corrective-re-read path — covered by tests — fired only once in 90 documents. Cost and scale moved with the fix: ¥0.3605 → ¥0.3138 per run, 16.7 s → 12.9 s per invoice, so the 100k extrapolation goes from ~¥401 / ~148 h / ~12,200 needing review to ~¥349 / ~92 h / 0.
+8. 8 audit rules with severity + evidence, incl. QR cross-validation and GB 32100-2015 tax-ID repair. Two failure modes that would have made the audit silently useless are fixed and regression-tested: a batch where every document failed no longer reports success, and one crashing rule no longer discards the whole batch's findings.
