@@ -1,12 +1,13 @@
-# Upgrade notes — audit evaluation, compliance fix, failure semantics, rule isolation
+# Upgrade notes — audit evaluation, compliance fix, failure semantics, rule isolation, export & upload hardening
 
-Six changes to DocMind, each done test-first (red → green). Every number below
+Seven changes to DocMind, each done test-first (red → green). Every number below
 comes from a command actually run in this working tree; nothing is estimated.
 
 Verification baseline: `pytest` → **186 passed** (132 pre-existing tests all
 still green, +54 new) for sections A–D; **296 passed** after sections E and F
-(251 before section F, +45 new tests). `npm run build` (tsc -b && vite build) →
-success. No `git push` was performed; all work is local.
+(251 before section F, +45 new tests); **309 passed** after section G (296
+before, +13 new tests, 0 deletions in `tests/`). `npm run build` (tsc -b && vite
+build) → success. No `git push` was performed; all work is local.
 
 > A fifth change is documented in [Section E](#e-the-end-to-end-measurement-the-audit-page-deferred)
 > below: the end-to-end evaluation, which closes the limitation section A
@@ -16,6 +17,12 @@ success. No `git push` was performed; all work is local.
 > the 12.2% extraction-failure rate that section E measured, reproduced, fixed
 > and then re-measured — including a defect the first fix introduced that only
 > the re-measurement caught.
+>
+> A seventh change is documented in [Section G](#g-export-downloads-and-upload-limits-three-small-findings):
+> three small audit findings — a JSON export that downloaded nothing, a CSV
+> column that was empty, and uploads with no size cap. One of them included a
+> re-measurement that contradicted the audit record and turned out to be wrong;
+> that is written down rather than quietly dropped.
 
 ---
 
@@ -542,6 +549,263 @@ second run and not the first.
 
 ---
 
+## G. Export downloads and upload limits (three small findings)
+
+Three audit-page findings, re-measured against the running server before
+touching code. Two were exactly what the record said. The third was real too,
+but the record's *symptom* was right for a different reason than assumed — and
+the re-measurement that contradicted the record was the one that was wrong,
+which is documented below instead of being quietly dropped.
+
+### G1. `/export?format=json` downloaded nothing
+
+**Problem.** The dashboard renders both export actions as plain `<a href>`
+links, so only a response carrying `Content-Disposition: attachment` makes the
+browser save a file. Clicking "Export JSON" produced no download at all while
+the CSV button next to it saved a 5562-byte file.
+
+**Reproduce (before the fix, against the running server).**
+
+```
+$ curl -s -D - -o NUL ".../api/batches/<id>/export?format=json"
+HTTP/1.1 200 OK
+content-length: 27392
+content-type: application/json          <- no content-disposition
+$ curl -s -D - -o NUL ".../api/batches/<id>/export?format=csv"
+content-disposition: attachment; filename="docmind_batch_<id>.csv"
+content-length: 5562
+```
+
+**Root cause.** The JSON branch of `export_batch()` returned a *bare list*:
+
+```python
+return [{"filename": r["filename"], **r["doc"]} for r in rows]
+```
+
+FastAPI serialises a returned list through the default `JSONResponse`, which
+sets no `Content-Disposition`; the CSV branch built a `Response` by hand and
+did. Two branches of one endpoint, two different download contracts — and the
+296 existing tests could not see it, because every one of them read the body
+(`r.json()`) and never asserted how the response is meant to be *delivered*.
+
+**Test (red).** `tests/test_api.py::TestExportDownloadContract`, written and run
+first:
+
+```
+$ pytest tests/test_api.py::TestExportDownloadContract -q
+E   AssertionError: a bare JSON body is not a download
+E   assert None is not None
+```
+
+**Fix.** Serialise explicitly, and give the JSON download the same header
+contract as CSV:
+
+```python
+return Response(
+    content=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+    media_type="application/json",
+    headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+)
+```
+
+`ensure_ascii=False` keeps Chinese party names readable — the inline response
+already behaved that way, and writing the `json.dumps` out explicitly is what
+keeps the fix from silently regressing it into `\uXXXX`. The body stays a JSON
+array: `json.loads` parses the downloaded bytes, so this is a data download, not
+a stringified one.
+
+**Prevention.** Four tests now pin the export contract for JSON (attachment
+header named `docmind_batch_<id>.json`, JSON content type, body parseable by
+`json.loads`, no `\uXXXX` escapes) — plus the pre-existing `test_export_json`,
+which still passes, because an inline JSON body and a downloaded JSON body are
+the same bytes.
+
+**Verified live** — server restarted on the same URL (`uvicorn app.main:app
+--host 127.0.0.1 --port 8000`), then curl and a real browser:
+
+```
+$ curl -s -D - -o NUL ".../export?format=json"
+HTTP/1.1 200 OK
+content-disposition: attachment; filename="docmind_batch_3f860b051db3.json"
+content-length: 29329
+content-type: application/json
+
+$ python -c "import json;raw=open('.probe/live_fixed.json','rb').read();..."
+json.loads OK  items=30  bytes=29329
+literal backslash-u escapes present: False
+has CJK: True
+```
+
+Playwright (Chromium, listening for the real `download` event that never fired
+before the fix):
+
+```
+[1] Export JSON — listening for a real download event
+    suggested_filename = docmind_batch_ec5695a4a7ae.json
+    [ok] download event fired and was named after the batch
+    [ok] downloaded body parses as JSON — 29329 bytes, 30 records
+    [ok] no \uXXXX escapes (Chinese stays readable)
+```
+
+### G2. The empty CSV `filename` column — the audit record was right
+
+**What the audit said.** "CSV export: the `filename` column is entirely empty."
+
+**Re-measured, live, before the fix.** 30/30 rows had an empty first cell:
+
+```
+$ curl -s ".../export?format=csv" | sed -n 2p
+,24000110433218196001,2024-04-21,远景云服务有限公司,913100007GK0H6NLNN,...
+```
+
+A later re-measurement reported the opposite — "the header is
+`filename,invoice_number,...` and the first row has a value
+(`invoice_001.pdf`)". That could not be reproduced on either the running server
+or `TestClient`. `invoice_001.pdf` is the first field of the **JSON** export,
+whose rows begin `{"filename":"invoice_001.pdf",...`; the CSV column was empty
+in every run. So the audit record is **not stale**: the column really was empty
+in all 30 rows, and it was fixed rather than pinned as "already correct".
+
+**Root cause.** `_EXPORT_COLUMNS` maps the column to the path `filename`, and
+the writer resolved every path against the *extracted document*:
+
+```python
+writer.writerow([_get_doc_value(doc, path) for _, path in _EXPORT_COLUMNS])
+```
+
+`doc` is `InvoiceDocument.model_dump()` — it has no `filename` field (the name
+lives on the result row, `r["filename"]`), so the lookup always returned `None`
+and the cell was always `""`. The JSON branch had merged the two
+(`{"filename": r["filename"], **r["doc"]}`), which is exactly why the JSON
+export showed names and the CSV never did.
+
+**Test (red).** `tests/test_api.py::TestExportCsvFilenameColumn` — 30-row regex
+check, CSV-vs-batch-result equality, CSV-vs-JSON equality:
+
+```
+$ pytest tests/test_api.py::TestExportCsvFilenameColumn -q
+E   AssertionError: row 0 exported filename=''
+E   assert None
+E    +  where None = <built-in method fullmatch ...>('')
+```
+
+**Fix.** One line, doing the same merge as the JSON branch:
+
+```python
+record = {"filename": r["filename"], **r["doc"]}
+writer.writerow([_get_doc_value(record, path) for _, path in _EXPORT_COLUMNS])
+```
+
+**Prevention.** The regression is pinned at the shape the UI consumes: every row
+of a 30-invoice export must match `invoice_\d+\.pdf` (the empty-cell version
+cannot come back without failing), and the CSV and JSON exports must agree
+field-for-field on file names, so the two branches cannot drift apart again.
+
+**Verified live / in the browser (after the fix).**
+
+```
+csv rows: 30 | empty filenames: 0 | filename pattern violations: []
+csv sample: invoice_001.pdf ... invoice_030.pdf | csv/json filenames agree: True
+[ok] every CSV row has a filename — 30 rows, empty cells: 0
+```
+
+### G3. Uploads had no size limit
+
+**Problem (measured before the fix).** `POST /api/invoices/upload` accepted a
+3 MB PDF, wrote it verbatim into `data/uploads/` and started a batch. Nothing
+bounded a single file, and the only request-level limit was the file *count*
+(200) — i.e. up to 200 unbounded files per request. Uploads are untrusted client
+input, so this is unbounded disk write driven by a remote caller.
+
+**Test (red).** `tests/test_upload_limits.py`, written and run first. The
+fixture shrinks the limits to 2 MB / 3 MB so the payloads stay tiny, copies the
+settings object (`model_copy`) so the shared `lru_cache`d `Settings` instance
+every other test uses is never mutated, and points the app at a `tmp_path` data
+directory so the multi-megabyte payloads never land in the repository's
+`data/` directory:
+
+```
+$ pytest tests/test_upload_limits.py -q
+E   assert 200 == 413        # 3 MB file accepted (test_oversized_file_is_rejected)
+E   assert 200 == 413        # mixed batch: small + oversized accepted, both written
+E   assert 200 == 413        # 2 x 2 MB accepted (per-request cap missing)
+E   AttributeError: 'Settings' object has no attribute 'max_upload_mb'
+```
+
+**Fix.** Two env-driven caps in `Settings` — `DOCMIND_MAX_UPLOAD_MB` (default
+20, per file) and `DOCMIND_MAX_BATCH_UPLOAD_MB` (default 200, per request) —
+enforced in `upload_invoices()`:
+
+- **413, not 400.** The payload is too large; that is what 413 means.
+- **Readable message**, including the file, its size and the limit, e.g.
+  `File 'big_upload.pdf' is 21.0 MB, over the 20 MB per-file upload limit`. The
+  dashboard already routes `detail` into an error banner (`api.ts` →
+  `App.tsx`), so the fix reused that channel rather than adding a new one.
+- **Validate all, then write.** Filename safety and declared size are checked
+  for *every* file before any file is written, so a rejected request leaves
+  nothing on disk. The old single-pass loop could write file 1 and then reject
+  file 2, leaving orphans behind for a batch that was never created.
+- **Declared size, then measured size.** The first pass uses `UploadFile.size`
+  from the multipart parser (with a seek-based fallback when a caller hands in
+  an `UploadFile` without one); the bytes actually read are re-checked before
+  the write, so the limit holds even if the parser reported nothing.
+- No client-side pre-check was added: it would have to duplicate the limit in
+  the browser and go stale. The server is the single source of truth, and the
+  error surfaces in the existing banner.
+
+**Verified live.**
+
+```
+$ curl -s -w "\nhttp_code=%{http_code}\n" -F "files=@.probe/big_upload.pdf;type=application/pdf" \
+    http://127.0.0.1:8000/api/invoices/upload
+{"detail":"File 'big_upload.pdf' is 21.0 MB, over the 20 MB per-file upload limit"}
+http_code=413
+$ ls data/uploads/big_upload*      ->  nothing written
+
+Playwright, same 21 MB file through the dashboard's file input:
+    banner text: ⚠ File 'big_upload.pdf' is 21.0 MB, over the 20 MB per-file upload limit
+    [ok] banner names the file and the 20 MB limit
+```
+
+**What is *not* claimed.** The request body is still received before the 413 is
+produced — multipart parsing happens before the route runs — so this caps what
+lands on *disk*, not the bytes the server ingests. A true ingress cap belongs at
+the reverse proxy (or a `Content-Length` middleware), and this deployment has
+neither; that is flagged here rather than implied to be solved. The per-request
+cap also only sums the sizes the parser reports; a part with no reported size is
+caught by the measured-size check at write time.
+
+### G. Test evidence, end to end
+
+```
+$ pytest tests/test_api.py::TestExportDownloadContract \
+         tests/test_api.py::TestExportCsvFilenameColumn tests/test_upload_limits.py -q
+.............        # 13 passed   (red before the fix: 8 failed / 5 passed)
+$ pytest
+309 passed in 5.98s  # 296 pre-existing + 13 new; tests/ diff has 0 deletions
+```
+
+**Interview angle.**
+
+- *A passing test-suite is not a contract.* 296 green tests read the export body
+  and never asked how the response is *delivered*; the download contract the UI
+  actually depends on (`Content-Disposition`) was asserted by nothing. The fix
+  is one `Response`, and the test that matters asserts the header, not the
+  payload.
+- *"I could not reproduce it" is a finding about the re-measurement.* The record
+  said the column was empty, a later pass said the first row had a value. Rather
+  than closing the item as stale, I re-ran it on the live server and on
+  `TestClient`: empty, 30/30. The "first row has a value" reading came from the
+  JSON export. Checking the *record* is part of checking the *bug*.
+- *"Add a size limit" is four decisions, not one check*: per-file vs
+  per-request, which status code, whether enforcement happens before or after
+  the disk write, and where the message surfaces. The cheap version returns 413
+  after a half-written batch.
+- *What the limit does not buy.* It stops unbounded disk writes, not unbounded
+  ingress — saying so is the difference between a fix and a claim.
+
+---
+
 ## Notes, deviations and open items
 
 - **Task A file placement** deviates from the suggested `benchmark/eval_audit.py`:
@@ -594,3 +858,13 @@ second run and not the first.
   did: the failure rate is now 0 % with the fallback still dead, and the refused
   call is reported as `model unavailable` and accounted for instead of being
   folded into "2 models tried".
+- **Section G's live evidence came from a restarted backend.** The instance on
+  `127.0.0.1:8000` was still running pre-fix code (started without `--reload`),
+  so it was stopped and restarted with `uvicorn app.main:app --host 127.0.0.1
+  --port 8000`. The curl and Playwright results above are from that restarted
+  process; the browser checks ran against the mounted build
+  (`frontend/dist`), not the Vite dev server.
+- **Section G needed no frontend source change.** The 413 message reaches the
+  dashboard through the existing `api.ts` → `App.tsx` error path (verified in
+  the browser), and the export buttons were already correct — the defect was on
+  the server side of the download contract, so the UI was left alone.

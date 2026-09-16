@@ -38,7 +38,7 @@ polished UI.
 | Custom graph with `hash()` node ids | Deterministic **networkx** knowledge graph + JSON API |
 | `templates/index.html` (jinja-ish page) | **React + TypeScript + Vite** dashboard with progress, audit, **analysis** & graph views |
 | Real (PII-bearing) sample invoices | Fully **synthetic** sample set + objective benchmark |
-| Manual "does it work?" | `pytest` suite (296 tests), field-level accuracy + end-to-end audit evaluation |
+| Manual "does it work?" | `pytest` suite (309 tests), field-level accuracy + end-to-end audit evaluation |
 
 ## Architecture
 
@@ -163,15 +163,24 @@ extractor) or upload your own PDFs (real Qwen extraction).
 |---|---|---|
 | `GET` | `/api/health` | liveness |
 | `GET` | `/api/rules` | registered audit rules + metadata |
-| `POST` | `/api/invoices/upload` | multipart PDF upload → `{batch_id}` (async) |
+| `POST` | `/api/invoices/upload` | multipart PDF upload → `{batch_id}` (async); ≤20 MB per file, ≤200 MB per request |
 | `GET` | `/api/batches/{id}` | batch status, per-file results, findings, graph |
 | `GET` | `/api/batches/{id}/audit` | audit findings + severity summary |
 | `GET` | `/api/batches/{id}/graph` | knowledge graph + insights |
-| `GET` | `/api/batches/{id}/export?format=csv\|json` | export batch |
+| `GET` | `/api/batches/{id}/export?format=csv\|json` | download the batch as a CSV/JSON attachment |
 | `POST` | `/api/batches/{id}/retry` | re-extract failed files, then re-audit |
 | `POST` | `/api/demo/load` | offline demo batch (mock extractor) |
 
 Interactive docs at `/api/docs`.
+
+Both export formats are served as **downloads** — `Content-Disposition:
+attachment`, `docmind_batch_<batch_id>.csv|json`, UTF-8 without `\uXXXX`
+escapes — so the dashboard's plain `<a href>` buttons save a file instead of
+navigating the tab to the payload. Uploads are capped by
+`DOCMIND_MAX_UPLOAD_MB` (default 20) per file and `DOCMIND_MAX_BATCH_UPLOAD_MB`
+(default 200) per request; an over-limit upload is rejected with `413` and a
+message naming the file, its size and the limit, which the dashboard shows in
+its error banner. A rejected request writes nothing to disk.
 
 ## Benchmark
 
@@ -278,7 +287,7 @@ checkable rather than remembered — see [docs/e2e-eval.md](docs/e2e-eval.md).
 ## Tests
 
 ```bash
-pytest            # 296 tests, fully offline (LLM calls are mocked)
+pytest            # 309 tests, fully offline (LLM calls are mocked)
 ```
 
 Coverage: schema contract, every audit rule, graph construction, JSON
@@ -303,7 +312,7 @@ frontend/             React + TS + Vite dashboard (upload/progress/results/audit
 scripts/              synthetic data generator, benchmark, audit eval, end-to-end eval, smoke test, secret scan, server check
 samples/              30 synthetic invoice PDFs (reportlab, Chinese e-invoice layout)
 benchmark/            ground_truth.json + benchmark results
-tests/                296 pytest tests (offline)
+tests/                309 pytest tests (offline)
 docs/                 benchmark report, audit-engine eval, end-to-end eval, data-compliance, NOTICE (credits)
 ```
 
@@ -374,4 +383,4 @@ FastAPI 分层架构，密钥全部走环境变量（pydantic-settings），使�
   包含合成样例与标注，附密钥扫描脚本（`scripts/scan_secrets.py`）。
 
 后端 `uvicorn app.main:app` 一键启动（自动托管前端构建产物），离线演示
-与全部 296 测试均使用 mock 抽取器，不消耗 API 额度。
+与全部 309 测试均使用 mock 抽取器，不消耗 API 额度。
