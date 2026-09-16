@@ -202,6 +202,15 @@ per-class and per-rule precision/recall and the overall numbers are written to
 absent from the mapping — or a mapping entry naming an unregistered rule id —
 raises instead of quietly scoring 0.
 
+**Read the number correctly:** on the current 30-invoice batch the engine scores
+micro P = R = F1 = 1.000 (12/12 anomalies, 0 false positives). That is a
+*detector-agrees-with-generator* result, not a generalisation claim — the
+synthetic generator both writes the labels and applies exactly the perturbation
+each rule looks for, and the engine is scored on labelled field values rather
+than on what the vision model actually returned. The measurement that matters
+for a real deployment (end-to-end, OCR errors included) is not taken here;
+the full list of caveats is at the top of `docs/audit-eval.md`.
+
 ## Tests
 
 ```bash

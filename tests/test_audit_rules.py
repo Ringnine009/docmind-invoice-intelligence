@@ -9,7 +9,15 @@ from app.models.invoice import InvoiceDocument
 from app.services.audit.base import AuditRule, get_registered_rules
 from app.services.audit.engine import AuditEngine
 
-from conftest import BUYER_TAX_ID, BUYER_TAX_ID_BAD_CHECK, SELLER_TAX_ID, make_invoice, make_item
+from conftest import (
+    BUYER_TAX_ID,
+    BUYER_TAX_ID_BAD_CHECK,
+    CHECK_CODE,
+    INVOICE_NUMBER,
+    SELLER_TAX_ID,
+    make_invoice,
+    make_item,
+)
 
 
 def rule_ids(batch: list[InvoiceDocument]) -> set[str]:
@@ -81,7 +89,7 @@ class TestArithmeticTotalRule:
         findings = findings_for(batch, "arithmetic_total")
         assert len(findings) == 1
         assert findings[0].severity == Severity.ERROR
-        assert findings[0].invoice_number == "24417000000034170288"
+        assert findings[0].invoice_number == INVOICE_NUMBER
 
     def test_tiny_rounding_diff_ok(self):
         batch = [make_invoice(amount_excluding_tax=111.33, tax_amount=14.47, amount_including_tax=125.81)]
@@ -239,10 +247,10 @@ class TestLowConfidenceRule:
 class TestQrCrosscheckRule:
     """QR payload (number/amount/date) vs. extracted fields."""
 
-    PAYLOAD = "01,32,,24417000000034170288,199.00,20240720"
+    PAYLOAD = f"01,32,,{INVOICE_NUMBER},199.00,20240720"
 
     def test_consistent_payload_passes(self):
-        batch = [make_invoice(number="24417000000034170288",
+        batch = [make_invoice(number=INVOICE_NUMBER,
                               amount_including_tax=199.00,
                               issue_date="2024-07-20",
                               qr_payload=self.PAYLOAD)]
@@ -254,11 +262,11 @@ class TestQrCrosscheckRule:
         findings = findings_for(batch, "qr_crosscheck")
         assert len(findings) == 1
         assert findings[0].severity == Severity.ERROR
-        assert findings[0].evidence["qr_number"] == "24417000000034170288"
+        assert findings[0].evidence["qr_number"] == INVOICE_NUMBER
         assert findings[0].evidence["extracted_number"] == "99999999999999999999"
 
     def test_amount_mismatch_detected(self):
-        batch = [make_invoice(number="24417000000034170288",
+        batch = [make_invoice(number=INVOICE_NUMBER,
                               amount_including_tax=299.00,
                               qr_payload=self.PAYLOAD)]
         findings = findings_for(batch, "qr_crosscheck")
@@ -267,13 +275,13 @@ class TestQrCrosscheckRule:
         assert findings[0].evidence["qr_amount"] == 199.00
 
     def test_amount_within_tolerance_passes(self):
-        batch = [make_invoice(number="24417000000034170288",
+        batch = [make_invoice(number=INVOICE_NUMBER,
                               amount_including_tax=199.01,
                               qr_payload=self.PAYLOAD)]
         assert findings_for(batch, "qr_crosscheck") == []
 
     def test_date_mismatch_warns(self):
-        batch = [make_invoice(number="24417000000034170288",
+        batch = [make_invoice(number=INVOICE_NUMBER,
                               amount_including_tax=199.00,
                               issue_date="2024-08-01",
                               qr_payload=self.PAYLOAD)]
@@ -282,21 +290,21 @@ class TestQrCrosscheckRule:
         assert findings[0].severity == Severity.WARNING
 
     def test_missing_payload_skipped(self):
-        batch = [make_invoice(number="24417000000034170288", qr_payload=None)]
+        batch = [make_invoice(number=INVOICE_NUMBER, qr_payload=None)]
         assert findings_for(batch, "qr_crosscheck") == []
 
     def test_garbage_payload_warns(self):
-        batch = [make_invoice(number="24417000000034170288",
+        batch = [make_invoice(number=INVOICE_NUMBER,
                               qr_payload="not-a-valid-payload")]
         findings = findings_for(batch, "qr_crosscheck")
         assert len(findings) == 1
         assert findings[0].severity == Severity.WARNING
 
     def test_unparseable_date_only_warns_on_date(self):
-        batch = [make_invoice(number="24417000000034170288",
+        batch = [make_invoice(number=INVOICE_NUMBER,
                               amount_including_tax=199.00,
                               issue_date="2024-07-20",
-                              qr_payload="01,32,,24417000000034170288,199.00,99999999")]
+                              qr_payload=f"01,32,,{INVOICE_NUMBER},199.00,99999999")]
         findings = findings_for(batch, "qr_crosscheck")
         # number & amount still match; only the date field is suspect
         assert all(f.severity == Severity.WARNING for f in findings)
