@@ -26,6 +26,8 @@ export const en: Record<string, string> = {
   "status.failed": "failed",
   "status.progress": "{done}/{total} · {pct}%",
   "status.summary": "{done}/{total} extracted · {findings} findings",
+  "audit.inconclusive":
+    "{failed} of {total} documents failed to extract — the audit below is inconclusive, not a clean result.",
   // upload
   "upload.title": "Drop invoice PDFs here or click to browse",
   "upload.processing": "Processing…",
@@ -127,6 +129,8 @@ export const zh: Record<string, string> = {
   "status.failed": "失败",
   "status.progress": "进度 {done}/{total} · {pct}%",
   "status.summary": "已抽取 {done}/{total} · 共 {findings} 条告警",
+  "audit.inconclusive":
+    "{total} 份文档中有 {failed} 份抽取失败 —— 下方审计结果不具结论性，不代表批次干净。",
   "upload.title": "拖拽发票 PDF 到此处，或点击选择文件",
   "upload.processing": "处理中…",
   "upload.selected": "已选择 {n} 个 PDF，正在处理…",

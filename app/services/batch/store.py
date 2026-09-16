@@ -28,14 +28,17 @@ class BatchStore:
             "status": "pending",
             "source": source,  # "upload" (real extraction) | "demo" (mock)
             "total": len(files),
+            # `done` counts *successful* extractions only; failures are counted
+            # separately so a batch can never look clean when it is not.
             "done": 0,
+            "failed": 0,
             "files": files,
             "results": [None] * len(files),
             "findings": [],
             "audit_summary": None,
             "graph": None,
             "insights": {},
-            "errors": [],
+            "errors": [],  # [{"filename": str | None, "error": str}]
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "completed_at": None,
         }

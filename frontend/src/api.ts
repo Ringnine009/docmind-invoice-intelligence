@@ -1,6 +1,6 @@
 // Thin API client for the DocMind backend.
 
-import type { AuditFinding, Batch, GraphData } from "./types";
+import type { AuditReport, Batch, GraphData } from "./types";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
@@ -53,8 +53,8 @@ export function getGraph(batchId: string): Promise<{ graph: GraphData; insights:
   return request(`/api/batches/${batchId}/graph`);
 }
 
-export function getAudit(batchId: string): Promise<{ findings: AuditFinding[] }> {
-  return request(`/api/batches/${batchId}/audit`);
+export function getAudit(batchId: string): Promise<AuditReport> {
+  return request<AuditReport>(`/api/batches/${batchId}/audit`);
 }
 
 export function retryFailed(batchId: string, indices: number[]): Promise<Batch> {

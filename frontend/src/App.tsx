@@ -169,6 +169,15 @@ export default function App() {
         </div>
       )}
 
+      {/* An empty audit panel must never read as "this batch is clean": say
+          outright that some documents failed to extract. */}
+      {batch && failed > 0 && (
+        <div className="banner error">
+          <span>⚠</span>{" "}
+          {tf("audit.inconclusive", { failed, total: batch.total })}
+        </div>
+      )}
+
       <UploadZone onUpload={handleUpload} busy={busy} />
 
       {batch && (

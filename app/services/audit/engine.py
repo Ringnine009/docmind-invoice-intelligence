@@ -39,10 +39,17 @@ class AuditEngine:
         return findings
 
     @staticmethod
-    def summarize(findings: list[AuditFinding]) -> dict:
+    def summarize(
+        findings: list[AuditFinding], documents_audited: int | None = None
+    ) -> dict:
         summary: dict = {"total": len(findings), "by_severity": {}}
         for severity in Severity:
             summary["by_severity"][severity.name] = 0
         for finding in findings:
             summary["by_severity"][finding.severity.name] += 1
+        if documents_audited is not None:
+            # How many documents the findings were derived from. Zero findings
+            # over zero documents is "nothing was audited", not "all clear" —
+            # downstream consumers need to be able to tell those apart.
+            summary["documents_audited"] = documents_audited
         return summary

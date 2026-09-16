@@ -81,19 +81,51 @@ export interface GraphData {
   };
 }
 
+export interface BatchError {
+  filename: string | null;
+  error: string;
+}
+
+export interface AuditSummary {
+  total: number;
+  by_severity: Record<Severity, number>;
+  /** How many documents the findings were derived from (0 = nothing audited). */
+  documents_audited?: number;
+}
+
 export interface Batch {
   id: string;
   status: "pending" | "running" | "done" | "failed";
   source: "upload" | "demo";
   total: number;
+  /** Successful extractions only — failures are counted in `failed`. */
   done: number;
+  failed: number;
   files: string[];
   results: (BatchResult | null)[];
   findings: AuditFinding[];
-  audit_summary: { total: number; by_severity: Record<Severity, number> } | null;
+  audit_summary: AuditSummary | null;
   graph: GraphData | null;
   insights: Record<string, unknown>;
-  errors: string[];
+  errors: BatchError[];
   created_at: string;
   completed_at: string | null;
+}
+
+/** `GET /api/batches/{id}/audit` — findings plus whether they mean anything. */
+export interface AuditReport {
+  findings: AuditFinding[];
+  summary: AuditSummary | null;
+  status: Batch["status"];
+  total: number;
+  done: number;
+  failed: number;
+  errors: BatchError[];
+  audited_documents: number;
+  /**
+   * False when the batch did not fully audit — some documents failed to
+   * extract. An empty `findings` list with `audit_conclusive: false` means
+   * "we could not tell", never "this batch is clean".
+   */
+  audit_conclusive: boolean;
 }
