@@ -24,6 +24,11 @@ data/
 benchmark/results/
 *.log
 
+# --- Untracked scratch used while reproducing a defect ---
+# Raw model responses, forensics dumps and one-off probes (see
+# docs/upgrade-notes.md §F). Kept on disk as evidence, never committed.
+.probe/
+
 # --- Coursework source (contains real PII + hardcoded secrets) ---
 _source*/
 
